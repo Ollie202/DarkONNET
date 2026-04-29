@@ -3,6 +3,7 @@
 import { Droplets, Menu } from "lucide-react";
 import { ThemeToggle } from "~~/components/ThemeToggle";
 import { RainbowKitCustomConnectButton } from "~~/components/helper";
+import { NotificationsMenu } from "~~/components/notifications/NotificationsMenu";
 import { useSidebar } from "~~/components/sidebar/SidebarContext";
 
 export const Header = () => {
@@ -23,6 +24,7 @@ export const Header = () => {
       </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
+        <NotificationsMenu />
         <a
           href="https://sepoliafaucet.com/"
           target="_blank"

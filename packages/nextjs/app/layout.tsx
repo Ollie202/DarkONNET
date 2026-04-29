@@ -2,6 +2,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import { AppShell } from "~~/components/AppShell";
 import { DappWrapperWithProviders } from "~~/components/DappWrapperWithProviders";
 import { ThemeProvider } from "~~/components/ThemeProvider";
+import { NotificationsProvider } from "~~/components/notifications/NotificationsContext";
 import { SidebarProvider } from "~~/components/sidebar/SidebarContext";
 import "~~/styles/globals.css";
 import { getMetadata } from "~~/utils/helper/getMetadata";
@@ -20,9 +21,11 @@ const DappWrapper = ({ children }: { children: React.ReactNode }) => {
       <body suppressHydrationWarning>
         <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>
           <SidebarProvider>
-            <DappWrapperWithProviders>
-              <AppShell>{children}</AppShell>
-            </DappWrapperWithProviders>
+            <NotificationsProvider>
+              <DappWrapperWithProviders>
+                <AppShell>{children}</AppShell>
+              </DappWrapperWithProviders>
+            </NotificationsProvider>
           </SidebarProvider>
         </ThemeProvider>
       </body>

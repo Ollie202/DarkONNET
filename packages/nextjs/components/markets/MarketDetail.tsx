@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ArrowLeft, CalendarClock, Lock, MessageCircle, ShieldCheck, ThumbsUp } from "lucide-react";
 import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
+import { useNotifications } from "~~/components/notifications/NotificationsContext";
 import { type Market, formatTimeRemaining } from "~~/lib/mockMarkets";
 
 type SelectedSide = "yes" | "no" | null;
@@ -22,6 +23,14 @@ type MarketComment = {
   text: string;
   likes: number;
   liked: boolean;
+  replies: MarketReply[];
+};
+
+type MarketReply = {
+  id: string;
+  author: string;
+  time: string;
+  text: string;
 };
 
 type MarketDetailProps = {
@@ -46,6 +55,14 @@ const sampleComments: MarketComment[] = [
     text: "The news flow feels tilted toward Yes, but I want to see one more confirmation before sizing up.",
     likes: 18,
     liked: false,
+    replies: [
+      {
+        id: "reply-1",
+        author: "0x09...a612",
+        time: "5m ago",
+        text: "Same read here. I think the next benchmark print decides this.",
+      },
+    ],
   },
   {
     id: "comment-2",
@@ -56,6 +73,7 @@ const sampleComments: MarketComment[] = [
     text: "Market is overreacting to headlines. The actual resolution criteria still looks hard to satisfy.",
     likes: 11,
     liked: false,
+    replies: [],
   },
   {
     id: "comment-3",
@@ -66,6 +84,7 @@ const sampleComments: MarketComment[] = [
     text: "Good market, but the final source used for resolution needs to be very explicit.",
     likes: 7,
     liked: false,
+    replies: [],
   },
 ];
 
@@ -89,6 +108,7 @@ const getMarketDescription = (market: Market) =>
 const formatCategory = (category: Market["category"]) => category[0].toUpperCase() + category.slice(1);
 
 export const MarketDetail = ({ market }: MarketDetailProps) => {
+  const { addNotification } = useNotifications();
   const searchParams = useSearchParams();
   const probability = useLiveProbability(market.yesProbability, market.sentimentSignals);
   const yesPct = Math.round(probability * 100);
@@ -103,6 +123,8 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [commentDraft, setCommentDraft] = useState("");
   const [commentSort, setCommentSort] = useState<CommentSort>("top");
   const [comments, setComments] = useState<MarketComment[]>(sampleComments);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const imageUrl = marketImages[market.id] ?? fallbackImages[market.category];
   const selectedTokenInfo = walletTokens.find(token => token.symbol === selectedToken) ?? walletTokens[0];
   const parsedAmount = Number(amount);
@@ -152,11 +174,50 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
         text,
         likes: 0,
         liked: false,
+        replies: [],
       },
       ...prev,
     ]);
     setCommentDraft("");
     setCommentSort("new");
+  };
+
+  const addReply = (commentId: string) => {
+    const text = replyDrafts[commentId]?.trim();
+    if (!text) return;
+
+    const parent = comments.find(comment => comment.id === commentId);
+    const replyAuthor = parent?.author === "You" ? "0x44...91cB" : "You";
+
+    setComments(prev =>
+      prev.map(comment =>
+        comment.id === commentId
+          ? {
+              ...comment,
+              replies: [
+                ...comment.replies,
+                {
+                  id: `reply-${Date.now()}`,
+                  author: replyAuthor,
+                  time: "Just now",
+                  text,
+                },
+              ],
+            }
+          : comment,
+      ),
+    );
+
+    if (parent?.author === "You") {
+      addNotification({
+        title: "Reply On Your Comment",
+        message: `${replyAuthor} replied to your comment on "${market.question}"`,
+        time: "Just now",
+      });
+    }
+
+    setReplyDrafts(prev => ({ ...prev, [commentId]: "" }));
+    setReplyingTo(null);
   };
 
   const toggleLike = (commentId: string) => {
@@ -211,15 +272,16 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             <div className="space-y-6 p-5 md:p-6">
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
-                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Current Yes</div>
-                  <div className="mt-1 font-mono text-2xl font-semibold text-[#16A34A] dark:text-[#22C55E]">
-                    {yesPct}%
+                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Market Type</div>
+                  <div className="mt-1 text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                    {formatCategory(market.category)}
                   </div>
                 </div>
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
-                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Current No</div>
-                  <div className="mt-1 font-mono text-2xl font-semibold text-[#DC2626] dark:text-[#EF4444]">
-                    {noPct}%
+                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Volume</div>
+                  <div className="mt-1 flex items-center gap-2 text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                    <Lock size={18} className="text-[#FFD60A]" />
+                    Encrypted
                   </div>
                 </div>
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
@@ -309,7 +371,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                       className="rounded-lg border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
                               {comment.author}
@@ -328,6 +390,22 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                             <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{comment.time}</span>
                           </div>
                           <p className="mt-2 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">{comment.text}</p>
+
+                          <div className="mt-3 flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+                            >
+                              <MessageCircle size={13} />
+                              Reply
+                            </button>
+                            {comment.replies.length > 0 && (
+                              <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">
+                                {comment.replies.length} {comment.replies.length === 1 ? "reply" : "replies"}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -343,6 +421,41 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                           {comment.likes}
                         </button>
                       </div>
+
+                      {comment.replies.length > 0 && (
+                        <div className="mt-3 space-y-2 border-l border-[#E5E5E5] pl-3 dark:border-[#1F1F1F]">
+                          {comment.replies.map(reply => (
+                            <div key={reply.id} className="rounded-md bg-white p-3 dark:bg-[#141414]">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                                  {reply.author}
+                                </span>
+                                <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{reply.time}</span>
+                              </div>
+                              <p className="mt-1 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">{reply.text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {replyingTo === comment.id && (
+                        <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
+                          <textarea
+                            value={replyDrafts[comment.id] ?? ""}
+                            onChange={event => setReplyDrafts(prev => ({ ...prev, [comment.id]: event.target.value }))}
+                            placeholder={`Reply to ${comment.author}...`}
+                            className="min-h-16 flex-1 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => addReply(comment.id)}
+                            disabled={!replyDrafts[comment.id]?.trim()}
+                            className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                          >
+                            Send
+                          </button>
+                        </div>
+                      )}
                     </article>
                   ))}
                 </div>
