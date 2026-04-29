@@ -84,6 +84,9 @@
     min-height: 100vh;
     background: var(--color-base-100);
     color: var(--color-base-content);
+    transition:
+      background-color 280ms ease,
+      color 280ms ease;
     font-family:
       "Telegraf",
       ui-sans-serif,
@@ -113,6 +116,30 @@
 :root,
 [data-theme] {
   background: var(--color-base-100);
+}
+
+:where(
+  header,
+  aside,
+  main,
+  section,
+  article,
+  button,
+  a,
+  summary,
+  input,
+  textarea,
+  select,
+  .btn,
+  .dropdown-content,
+  .menu,
+  .rounded-md,
+  .rounded-\[0\.5rem\],
+  .rounded-\[0\.75rem\]
+) {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow, opacity, transform;
+  transition-duration: 280ms;
+  transition-timing-function: ease;
 }
 
 .btn {

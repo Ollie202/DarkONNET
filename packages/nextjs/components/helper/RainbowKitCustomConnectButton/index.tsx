@@ -43,10 +43,10 @@ export const RainbowKitCustomConnectButton = () => {
               }
 
               return (
-                <>
-                  <div className="flex flex-col items-center mr-1 text-gray-900">
-                    <Balance address={account.address as Address} className="min-h-0 h-auto" />
-                    <span className="text-xs text-gray-900">{chain.name}</span>
+                <div className="flex items-center gap-2 rounded-md border border-[#E5E5E5] bg-[#F4F4F5] px-2 py-1 text-[#0A0A0A] shadow-sm transition-colors duration-300 dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]">
+                  <div className="mr-1 flex flex-col items-center text-current">
+                    <Balance address={account.address as Address} className="h-auto min-h-0 text-current" />
+                    <span className="text-xs font-medium text-current">{chain.name}</span>
                   </div>
                   <AddressInfoDropdown
                     address={account.address as Address}
@@ -54,7 +54,7 @@ export const RainbowKitCustomConnectButton = () => {
                     ensAvatar={account.ensAvatar}
                     blockExplorerAddressLink={blockExplorerAddressLink}
                   />
-                </>
+                </div>
               );
             })()}
           </>
