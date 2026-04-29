@@ -3,6 +3,7 @@ import { AppShell } from "~~/components/AppShell";
 import { DappWrapperWithProviders } from "~~/components/DappWrapperWithProviders";
 import { ThemeProvider } from "~~/components/ThemeProvider";
 import { NotificationsProvider } from "~~/components/notifications/NotificationsContext";
+import { ProfileProvider } from "~~/components/profile/ProfileContext";
 import { SidebarProvider } from "~~/components/sidebar/SidebarContext";
 import "~~/styles/globals.css";
 import { getMetadata } from "~~/utils/helper/getMetadata";
@@ -22,9 +23,11 @@ const DappWrapper = ({ children }: { children: React.ReactNode }) => {
         <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>
           <SidebarProvider>
             <NotificationsProvider>
-              <DappWrapperWithProviders>
-                <AppShell>{children}</AppShell>
-              </DappWrapperWithProviders>
+              <ProfileProvider>
+                <DappWrapperWithProviders>
+                  <AppShell>{children}</AppShell>
+                </DappWrapperWithProviders>
+              </ProfileProvider>
             </NotificationsProvider>
           </SidebarProvider>
         </ThemeProvider>
