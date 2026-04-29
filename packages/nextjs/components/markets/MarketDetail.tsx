@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarClock, ExternalLink, Lock, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CalendarClock, Lock, MessageCircle, ShieldCheck, ThumbsUp } from "lucide-react";
 import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
 import { type Market, formatTimeRemaining } from "~~/lib/mockMarkets";
@@ -21,6 +21,30 @@ const walletTokens = [
   { symbol: "ETH", label: "Sepolia ETH", balance: 0.42, usdPrice: 3380 },
   { symbol: "USDC", label: "Mock USDC", balance: 250, usdPrice: 1 },
   { symbol: "ZAMA", label: "Test ZAMA", balance: 1000, usdPrice: 0.12 },
+];
+
+const sampleComments = [
+  {
+    author: "0x81...F2a9",
+    side: "Yes",
+    time: "12m ago",
+    text: "The news flow feels tilted toward Yes, but I want to see one more confirmation before sizing up.",
+    likes: 18,
+  },
+  {
+    author: "0x44...91cB",
+    side: "No",
+    time: "28m ago",
+    text: "Market is overreacting to headlines. The actual resolution criteria still looks hard to satisfy.",
+    likes: 11,
+  },
+  {
+    author: "0xA7...0e31",
+    side: "Watching",
+    time: "1h ago",
+    text: "Good market, but the final source used for resolution needs to be very explicit.",
+    likes: 7,
+  },
 ];
 
 const marketDescriptions: Partial<Record<string, string>> = {
@@ -162,17 +186,80 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               </div>
 
               <div>
-                <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Sources</h2>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {["Major public news wires", "Official releases or market benchmarks"].map(source => (
-                    <button
-                      key={source}
-                      type="button"
-                      className="flex items-center justify-between rounded-md border border-[#E5E5E5] bg-[#F8FAFC] px-3 py-3 text-left text-sm text-[#525252] transition-colors hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
-                    >
-                      {source}
-                      <ExternalLink size={15} />
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Comments</h2>
+                  <div className="flex rounded-md border border-[#E5E5E5] p-0.5 text-xs font-semibold dark:border-[#1F1F1F]">
+                    <button className="h-7 rounded bg-[#FFD60A] px-3 text-[#0A0A0A]" type="button">
+                      Top
                     </button>
+                    <button
+                      className="h-7 rounded px-3 text-[#525252] transition-colors hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
+                      type="button"
+                    >
+                      New
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-[#E5E5E5] bg-[#F8FAFC] p-3 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
+                  <div className="flex gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD60A] text-sm font-bold text-[#0A0A0A]">
+                      You
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <textarea
+                        placeholder="Share your take on this market..."
+                        className="min-h-20 w-full resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-3 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]"
+                      />
+                      <div className="mt-2 flex justify-end">
+                        <button
+                          type="button"
+                          className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 active:translate-y-0"
+                        >
+                          <MessageCircle size={15} />
+                          Comment
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {sampleComments.map(comment => (
+                    <article
+                      key={`${comment.author}-${comment.time}`}
+                      className="rounded-lg border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                              {comment.author}
+                            </span>
+                            <span
+                              className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
+                                comment.side === "Yes"
+                                  ? "border-[#16A34A]/30 text-[#16A34A] dark:text-[#22C55E]"
+                                  : comment.side === "No"
+                                    ? "border-[#DC2626]/30 text-[#DC2626] dark:text-[#EF4444]"
+                                    : "border-[#E5E5E5] text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]"
+                              }`}
+                            >
+                              {comment.side}
+                            </span>
+                            <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{comment.time}</span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">{comment.text}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-[#E5E5E5] px-2 text-xs font-semibold text-[#525252] transition-colors hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                        >
+                          <ThumbsUp size={13} />
+                          {comment.likes}
+                        </button>
+                      </div>
+                    </article>
                   ))}
                 </div>
               </div>
