@@ -85,8 +85,8 @@
     background: var(--color-base-100);
     color: var(--color-base-content);
     transition:
-      background-color 280ms ease,
-      color 280ms ease;
+      background-color 520ms ease,
+      color 520ms ease;
     font-family:
       "Telegraf",
       ui-sans-serif,
@@ -138,8 +138,8 @@
   .rounded-\[0\.75rem\]
 ) {
   transition-property: background-color, border-color, color, fill, stroke, box-shadow, opacity, transform;
-  transition-duration: 280ms;
-  transition-timing-function: ease;
+  transition-duration: 520ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .btn {
