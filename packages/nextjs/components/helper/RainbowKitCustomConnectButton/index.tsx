@@ -56,14 +56,14 @@ export const RainbowKitCustomConnectButton = () => {
         const displayName = profileName || fallbackName;
 
         return (
-          <details ref={dropdownRef} className="dropdown dropdown-end">
-            <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border border-[#E5E5E5] bg-[#F4F4F5] px-2 text-sm font-semibold text-[#0A0A0A] shadow-sm transition-colors hover:border-[#FFD60A]/60 dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]">
+          <details ref={dropdownRef} className="dropdown dropdown-end relative z-[100]">
+            <summary className="flex h-9 max-w-[13rem] cursor-pointer list-none items-center gap-2 rounded-md border border-[#E5E5E5] bg-[#F4F4F5] px-2 text-sm font-semibold text-[#0A0A0A] shadow-sm transition-colors hover:border-[#FFD60A]/60 dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]">
               <BlockieAvatar address={checkSumAddress} size={24} ensImage={account.ensAvatar} />
               <span className="hidden max-w-32 truncate sm:block">{displayName}</span>
               <ChevronDown size={15} className="text-[#525252] dark:text-[#A1A1A1]" />
             </summary>
 
-            <div className="dropdown-content mt-2 w-80 overflow-hidden rounded-lg border border-[#E5E5E5] bg-white shadow-[0_18px_50px_-28px_rgba(10,10,10,0.5)] dark:border-[#1F1F1F] dark:bg-[#141414]">
+            <div className="dropdown-content z-[100] mt-2 w-[20rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg border border-[#E5E5E5] bg-white shadow-[0_18px_50px_-28px_rgba(10,10,10,0.5)] dark:border-[#1F1F1F] dark:bg-[#141414]">
               <div className="border-b border-[#E5E5E5] p-4 dark:border-[#1F1F1F]">
                 <div className="flex items-center gap-3">
                   <BlockieAvatar address={checkSumAddress} size={38} ensImage={account.ensAvatar} />
@@ -97,7 +97,7 @@ export const RainbowKitCustomConnectButton = () => {
                     <Wallet size={14} />
                     {chain.name}
                   </div>
-                  <div className="mt-2 font-mono">{checkSumAddress}</div>
+                  <div className="mt-2 break-all font-mono">{checkSumAddress}</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">

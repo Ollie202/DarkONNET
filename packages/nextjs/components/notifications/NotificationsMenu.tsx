@@ -12,7 +12,7 @@ export const NotificationsMenu = () => {
   useOutsideClick(dropdownRef, () => dropdownRef.current?.removeAttribute("open"));
 
   return (
-    <details ref={dropdownRef} className="dropdown dropdown-end">
+    <details ref={dropdownRef} className="dropdown dropdown-end relative z-[100]">
       <summary
         aria-label="notifications"
         className="relative inline-flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md text-[#525252] transition-colors hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
@@ -23,7 +23,7 @@ export const NotificationsMenu = () => {
         )}
       </summary>
 
-      <div className="dropdown-content mt-2 w-80 overflow-hidden rounded-lg border border-[#E5E5E5] bg-white shadow-[0_18px_50px_-28px_rgba(10,10,10,0.5)] dark:border-[#1F1F1F] dark:bg-[#141414]">
+      <div className="dropdown-content z-[100] mt-2 w-80 max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg border border-[#E5E5E5] bg-white shadow-[0_18px_50px_-28px_rgba(10,10,10,0.5)] dark:border-[#1F1F1F] dark:bg-[#141414]">
         <div className="flex items-center justify-between border-b border-[#E5E5E5] px-4 py-3 dark:border-[#1F1F1F]">
           <h2 className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Notifications</h2>
           <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{unreadCount} unread</span>

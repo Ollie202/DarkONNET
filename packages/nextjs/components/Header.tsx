@@ -10,7 +10,7 @@ export const Header = () => {
   const { toggle } = useSidebar();
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between h-14 shrink-0 border-b border-[#E5E5E5] dark:border-[#1F1F1F] bg-white dark:bg-[#0A0A0A] px-3">
+    <header className="sticky top-0 z-[80] flex items-center justify-between h-14 shrink-0 border-b border-[#E5E5E5] dark:border-[#1F1F1F] bg-white dark:bg-[#0A0A0A] px-3">
       <div className="flex items-center gap-3">
         <button
           type="button"
