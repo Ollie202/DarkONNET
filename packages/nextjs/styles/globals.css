@@ -2,8 +2,6 @@
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
-
 @theme {
   --shadow-center: 0 0 12px -2px rgb(0 0 0 / 0.05);
   --animate-pulse-fast: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -12,76 +10,70 @@
 @plugin "daisyui" {
   themes:
     light,
-    dark --prefersdark;
+    dark --default;
 }
 
 @plugin "daisyui/theme" {
   name: "light";
 
-  --color-primary: #93bbfb;
-  --color-primary-content: #212638;
-  --color-secondary: #dae8ff;
-  --color-secondary-content: #212638;
-  --color-accent: #93bbfb;
-  --color-accent-content: #212638;
-  --color-neutral: #212638;
-  --color-neutral-content: #ffffff;
-  --color-base-100: #e8e8e8;
-  --color-base-200: #e8e8e8;
-  --color-base-300: #e8e8e8;
-  --color-base-content: #212638;
-  --color-info: #93bbfb;
-  --color-success: #34eeb6;
-  --color-warning: #ffcf72;
-  --color-error: #ff8863;
+  --color-primary: #ffd60a;
+  --color-primary-content: #0a0a0a;
+  --color-secondary: #ffffff;
+  --color-secondary-content: #0a0a0a;
+  --color-accent: #ffd60a;
+  --color-accent-content: #0a0a0a;
+  --color-neutral: #e5e5e5;
+  --color-neutral-content: #525252;
+  --color-base-100: #fafafa;
+  --color-base-200: #ffffff;
+  --color-base-300: #e5e5e5;
+  --color-base-content: #0a0a0a;
+  --color-info: #ffd60a;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
 
-  --radius-field: 9999rem;
-  --radius-box: 1rem;
-  --tt-tailw: 6px;
-}
-
-@plugin "daisyui/theme" {
-  name: "dark";
-
-  --color-primary: #212638;
-  --color-primary-content: #f9fbff;
-  --color-secondary: #323f61;
-  --color-secondary-content: #f9fbff;
-  --color-accent: #4969a6;
-  --color-accent-content: #f9fbff;
-  --color-neutral: #f9fbff;
-  --color-neutral-content: #385183;
-  --color-base-100: #b7791f;
-  --color-base-200: #975a16;
-  --color-base-300: #744210;
-  --color-base-content: #f9fbff;
-  --color-info: #385183;
-  --color-success: #34eeb6;
-  --color-warning: #ffcf72;
-  --color-error: #ff8863;
-
-  --radius-field: 9999rem;
-  --radius-box: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
 
   --tt-tailw: 6px;
   --tt-bg: var(--color-primary);
 }
 
-/*
-  The default border color has changed to `currentColor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
+@plugin "daisyui/theme" {
+  name: "dark";
 
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
+  --color-primary: #ffd60a;
+  --color-primary-content: #0a0a0a;
+  --color-secondary: #141414;
+  --color-secondary-content: #fafafa;
+  --color-accent: #ffd60a;
+  --color-accent-content: #0a0a0a;
+  --color-neutral: #1f1f1f;
+  --color-neutral-content: #a1a1a1;
+  --color-base-100: #0a0a0a;
+  --color-base-200: #141414;
+  --color-base-300: #1f1f1f;
+  --color-base-content: #fafafa;
+  --color-info: #ffd60a;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+
+  --tt-tailw: 6px;
+  --tt-bg: var(--color-primary);
+}
+
 @layer base {
   *,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
+    border-color: var(--color-base-300);
   }
 
   p {
@@ -90,6 +82,8 @@
 
   body {
     min-height: 100vh;
+    background: var(--color-base-100);
+    color: var(--color-base-content);
     font-family:
       "Telegraf",
       ui-sans-serif,
@@ -118,7 +112,7 @@
 
 :root,
 [data-theme] {
-  background: var(--color-base-200);
+  background: var(--color-base-100);
 }
 
 .btn {
