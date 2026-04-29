@@ -11,11 +11,25 @@ export const ThemeToggle = () => {
   useEffect(() => setMounted(true), []);
 
   const isDark = mounted ? theme === "dark" : true;
+  const nextTheme = isDark ? "light" : "dark";
+
+  const toggleTheme = () => {
+    const viewTransitionDocument = document as Document & {
+      startViewTransition?: (callback: () => void) => void;
+    };
+
+    if (!viewTransitionDocument.startViewTransition) {
+      setTheme(nextTheme);
+      return;
+    }
+
+    viewTransitionDocument.startViewTransition(() => setTheme(nextTheme));
+  };
 
   return (
     <button
       type="button"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={toggleTheme}
       aria-label="toggle theme"
       className="inline-flex items-center justify-center h-9 w-9 rounded-md text-[#525252] dark:text-[#A1A1A1] hover:bg-[#F4F4F5] dark:hover:bg-[#141414] hover:text-[#0A0A0A] dark:hover:text-[#FFD60A] transition-colors"
     >

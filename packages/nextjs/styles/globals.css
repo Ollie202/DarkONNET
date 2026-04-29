@@ -126,9 +126,22 @@
 [data-theme] section,
 [data-theme] .dropdown-content {
   transition:
-    background-color 360ms ease,
-    border-color 360ms ease,
-    color 360ms ease;
+    background-color 420ms ease,
+    border-color 420ms ease,
+    color 420ms ease;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 420ms;
+  animation-timing-function: ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 1ms;
+  }
 }
 
 .btn {

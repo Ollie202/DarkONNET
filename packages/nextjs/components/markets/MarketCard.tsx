@@ -15,6 +15,17 @@ const categoryStyles: Record<Market["category"], string> = {
   esports: "text-[#7C3AED] dark:text-[#A78BFA] border-[#7C3AED]/30 dark:border-[#A78BFA]/30",
 };
 
+const categoryImages: Record<Market["category"], string> = {
+  crypto: "https://images.unsplash.com/photo-1640340434855-6084b1f4901c?auto=format&fit=crop&w=900&q=80",
+  politics: "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=900&q=80",
+  sports: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=900&q=80",
+  tech: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=80",
+  culture: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=900&q=80",
+  finance: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=900&q=80",
+  geopolitics: "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=900&q=80",
+  esports: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80",
+};
+
 export const MarketCard = ({ market }: { market: Market }) => {
   const probability = useLiveProbability(market.yesProbability, market.sentimentSignals);
   const yesPct = Math.round(probability * 100);
@@ -24,6 +35,14 @@ export const MarketCard = ({ market }: { market: Market }) => {
 
   return (
     <article className="group flex cursor-pointer flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] bg-white p-5 transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#FFD60A]/70 hover:shadow-[0_12px_24px_-14px_rgba(10,10,10,0.55)] active:translate-y-0 active:scale-[1.01] dark:border-[#1F1F1F] dark:bg-[#141414] dark:hover:shadow-[0_12px_24px_-14px_rgba(255,214,10,0.45)]">
+      <div className="-mx-1 -mt-1 overflow-hidden rounded-lg border border-[#E5E5E5] bg-[#F4F4F5] dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
+        <div
+          aria-hidden="true"
+          className="h-28 w-full bg-cover bg-center opacity-90 transition-transform duration-200 ease-out group-hover:scale-[1.045]"
+          style={{ backgroundImage: `url(${categoryImages[market.category]})` }}
+        />
+      </div>
+
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className={`text-[10px] tracking-wider px-2 py-0.5 rounded-md border ${catClass}`}>

@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
 export const Sidebar = () => {
   const { isCollapsed } = useSidebar();
   const pathname = usePathname();
+  const createActive = pathname === "/create-market";
 
   return (
     <aside
@@ -63,16 +64,16 @@ export const Sidebar = () => {
           })}
         </ul>
         <div className="mt-3 px-2">
-          <button
-            type="button"
-            className={`flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 hover:shadow-md active:translate-y-0 ${
-              isCollapsed ? "px-0" : "px-3"
-            }`}
+          <Link
+            href="/create-market"
+            className={`flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 hover:shadow-md active:translate-y-0 ${
+              createActive ? "bg-[#FFD60A]" : "bg-[#FFD60A]/85"
+            } ${isCollapsed ? "px-0" : "px-3"}`}
             title={isCollapsed ? "Create Market" : undefined}
           >
             <Plus size={18} className="shrink-0" />
             {!isCollapsed && <span className="truncate">Create Market</span>}
-          </button>
+          </Link>
         </div>
       </nav>
     </aside>
