@@ -31,6 +31,7 @@ type MarketReply = {
   author: string;
   time: string;
   text: string;
+  replies: MarketReply[];
 };
 
 type MarketDetailProps = {
@@ -61,6 +62,15 @@ const sampleComments: MarketComment[] = [
         author: "0x09...a612",
         time: "5m ago",
         text: "Same read here. I think the next benchmark print decides this.",
+        replies: [
+          {
+            id: "reply-1-1",
+            author: "0x81...F2a9",
+            time: "2m ago",
+            text: "Exactly. The resolution wording matters more than the headline itself.",
+            replies: [],
+          },
+        ],
       },
     ],
   },
@@ -182,33 +192,50 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     setCommentSort("new");
   };
 
-  const addReply = (commentId: string) => {
-    const text = replyDrafts[commentId]?.trim();
+  const addReply = (targetId: string) => {
+    const text = replyDrafts[targetId]?.trim();
     if (!text) return;
 
-    const parent = comments.find(comment => comment.id === commentId);
-    const replyAuthor = parent?.author === "You" ? "0x44...91cB" : "You";
+    const findReplyAuthor = (replies: MarketReply[]): string | undefined => {
+      for (const reply of replies) {
+        if (reply.id === targetId) return reply.author;
+        const nestedAuthor = findReplyAuthor(reply.replies);
+        if (nestedAuthor) return nestedAuthor;
+      }
+      return undefined;
+    };
+
+    const parentComment = comments.find(comment => comment.id === targetId);
+    const parentAuthor =
+      parentComment?.author ?? comments.map(comment => findReplyAuthor(comment.replies)).find(Boolean);
+    const replyAuthor = parentAuthor === "You" ? "0x44...91cB" : "You";
+    const nextReply: MarketReply = {
+      id: `reply-${Date.now()}`,
+      author: replyAuthor,
+      time: "Just now",
+      text,
+      replies: [],
+    };
+
+    const addNestedReply = (replies: MarketReply[]): MarketReply[] =>
+      replies.map(reply =>
+        reply.id === targetId
+          ? { ...reply, replies: [...reply.replies, nextReply] }
+          : { ...reply, replies: addNestedReply(reply.replies) },
+      );
 
     setComments(prev =>
       prev.map(comment =>
-        comment.id === commentId
+        comment.id === targetId
           ? {
               ...comment,
-              replies: [
-                ...comment.replies,
-                {
-                  id: `reply-${Date.now()}`,
-                  author: replyAuthor,
-                  time: "Just now",
-                  text,
-                },
-              ],
+              replies: [...comment.replies, nextReply],
             }
-          : comment,
+          : { ...comment, replies: addNestedReply(comment.replies) },
       ),
     );
 
-    if (parent?.author === "You") {
+    if (parentAuthor === "You") {
       addNotification({
         title: "Reply On Your Comment",
         message: `${replyAuthor} replied to your comment on "${market.question}"`,
@@ -216,7 +243,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       });
     }
 
-    setReplyDrafts(prev => ({ ...prev, [commentId]: "" }));
+    setReplyDrafts(prev => ({ ...prev, [targetId]: "" }));
     setReplyingTo(null);
   };
 
@@ -231,6 +258,55 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             }
           : comment,
       ),
+    );
+  };
+
+  const renderReplies = (replies: MarketReply[], depth = 0) => {
+    if (replies.length === 0) return null;
+
+    return (
+      <div className={`mt-3 space-y-2 border-l border-[#E5E5E5] pl-3 dark:border-[#1F1F1F] ${depth > 0 ? "ml-2" : ""}`}>
+        {replies.map(reply => (
+          <div key={reply.id} className="rounded-md bg-white p-3 dark:bg-[#141414]">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">{reply.author}</span>
+              <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{reply.time}</span>
+            </div>
+            <p className="mt-1 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">{reply.text}</p>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setReplyingTo(replyingTo === reply.id ? null : reply.id)}
+                className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-[#F8FAFC] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#0A0A0A] dark:hover:text-[#FFD60A]"
+              >
+                <MessageCircle size={13} />
+                Reply
+              </button>
+            </div>
+
+            {replyingTo === reply.id && (
+              <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
+                <textarea
+                  value={replyDrafts[reply.id] ?? ""}
+                  onChange={event => setReplyDrafts(prev => ({ ...prev, [reply.id]: event.target.value }))}
+                  placeholder={`Reply to ${reply.author}...`}
+                  className="min-h-16 flex-1 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
+                />
+                <button
+                  type="button"
+                  onClick={() => addReply(reply.id)}
+                  disabled={!replyDrafts[reply.id]?.trim()}
+                  className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                >
+                  Send
+                </button>
+              </div>
+            )}
+
+            {renderReplies(reply.replies, depth + 1)}
+          </div>
+        ))}
+      </div>
     );
   };
 
@@ -410,21 +486,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                         </button>
                       </div>
 
-                      {comment.replies.length > 0 && (
-                        <div className="mt-3 space-y-2 border-l border-[#E5E5E5] pl-3 dark:border-[#1F1F1F]">
-                          {comment.replies.map(reply => (
-                            <div key={reply.id} className="rounded-md bg-white p-3 dark:bg-[#141414]">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                                  {reply.author}
-                                </span>
-                                <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{reply.time}</span>
-                              </div>
-                              <p className="mt-1 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">{reply.text}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {renderReplies(comment.replies)}
 
                       {replyingTo === comment.id && (
                         <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
