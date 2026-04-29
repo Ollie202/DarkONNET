@@ -105,7 +105,7 @@ export const DappWrapperWithProviders = ({ children }: { children: React.ReactNo
         <RainbowKitProvider
           avatar={BlockieAvatar}
           initialChain={sepolia}
-          theme={mounted ? (isDarkMode ? darkTheme() : lightTheme()) : lightTheme()}
+          theme={mounted ? (isDarkMode ? darkTheme() : lightTheme()) : darkTheme()}
         >
           <SepoliaDefaultNetwork />
           <ZamaRuntimeProvider>
