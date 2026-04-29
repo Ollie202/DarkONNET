@@ -272,16 +272,15 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             <div className="space-y-6 p-5 md:p-6">
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
-                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Market Type</div>
-                  <div className="mt-1 text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                    {formatCategory(market.category)}
+                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Current Yes</div>
+                  <div className="mt-1 font-mono text-2xl font-semibold text-[#16A34A] dark:text-[#22C55E]">
+                    {yesPct}%
                   </div>
                 </div>
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
-                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Volume</div>
-                  <div className="mt-1 flex items-center gap-2 text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                    <Lock size={18} className="text-[#FFD60A]" />
-                    Encrypted
+                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Current No</div>
+                  <div className="mt-1 font-mono text-2xl font-semibold text-[#DC2626] dark:text-[#EF4444]">
+                    {noPct}%
                   </div>
                 </div>
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
@@ -375,17 +374,6 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
                               {comment.author}
-                            </span>
-                            <span
-                              className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
-                                comment.side === "Yes"
-                                  ? "border-[#16A34A]/30 text-[#16A34A] dark:text-[#22C55E]"
-                                  : comment.side === "No"
-                                    ? "border-[#DC2626]/30 text-[#DC2626] dark:text-[#EF4444]"
-                                    : "border-[#E5E5E5] text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]"
-                              }`}
-                            >
-                              {comment.side}
                             </span>
                             <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{comment.time}</span>
                           </div>
