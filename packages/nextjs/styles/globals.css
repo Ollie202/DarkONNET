@@ -118,28 +118,18 @@
   background: var(--color-base-100);
 }
 
-:where(
-  header,
-  aside,
-  main,
-  section,
-  article,
-  button,
-  a,
-  summary,
-  input,
-  textarea,
-  select,
-  .btn,
-  .dropdown-content,
-  .menu,
-  .rounded-md,
-  .rounded-\[0\.5rem\],
-  .rounded-\[0\.75rem\]
-) {
-  transition-property: background-color, border-color, color, fill, stroke, box-shadow, opacity, transform;
-  transition-duration: 520ms;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+[data-theme],
+[data-theme] body,
+[data-theme] header,
+[data-theme] aside,
+[data-theme] main,
+[data-theme] section,
+[data-theme] article,
+[data-theme] .dropdown-content {
+  transition:
+    background-color 360ms ease,
+    border-color 360ms ease,
+    color 360ms ease;
 }
 
 .btn {
