@@ -24,7 +24,7 @@ export const Sidebar = () => {
 
   return (
     <aside
-      className={`hidden md:flex shrink-0 flex-col border-r border-[#E5E5E5] dark:border-[#1F1F1F] bg-white dark:bg-[#0A0A0A] transition-[width] duration-200 ease-out ${
+      className={`sticky top-14 hidden h-[calc(100vh-3.5rem)] shrink-0 flex-col border-r border-[#E5E5E5] bg-white transition-[width] duration-200 ease-out dark:border-[#1F1F1F] dark:bg-[#0A0A0A] md:flex ${
         isCollapsed ? "w-16" : "w-60"
       }`}
       aria-label="primary navigation"
@@ -62,20 +62,19 @@ export const Sidebar = () => {
             );
           })}
         </ul>
+        <div className="mt-3 px-2">
+          <button
+            type="button"
+            className={`flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 hover:shadow-md active:translate-y-0 ${
+              isCollapsed ? "px-0" : "px-3"
+            }`}
+            title={isCollapsed ? "Create Market" : undefined}
+          >
+            <Plus size={18} className="shrink-0" />
+            {!isCollapsed && <span className="truncate">Create Market</span>}
+          </button>
+        </div>
       </nav>
-
-      <div className="border-t border-[#E5E5E5] dark:border-[#1F1F1F] p-3">
-        <button
-          type="button"
-          className={`flex items-center justify-center gap-2 w-full h-10 rounded-md bg-[#FFD60A] text-[#0A0A0A] text-sm font-semibold hover:bg-[#FFD60A]/90 transition-colors ${
-            isCollapsed ? "px-0" : "px-3"
-          }`}
-          title={isCollapsed ? "create market" : undefined}
-        >
-          <Plus size={18} className="shrink-0" />
-          {!isCollapsed && <span className="truncate">Create Market</span>}
-        </button>
-      </div>
     </aside>
   );
 };

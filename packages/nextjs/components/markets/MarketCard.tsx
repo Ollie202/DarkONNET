@@ -23,7 +23,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
   const catClass = categoryStyles[market.category];
 
   return (
-    <article className="flex flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] dark:border-[#1F1F1F] bg-white dark:bg-[#141414] p-5 transition-colors hover:border-[#FFD60A]/60">
+    <article className="group flex cursor-pointer flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] bg-white p-5 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.015] hover:border-[#FFD60A]/70 hover:shadow-[0_18px_40px_-24px_rgba(10,10,10,0.55)] dark:border-[#1F1F1F] dark:bg-[#141414] dark:hover:shadow-[0_18px_42px_-24px_rgba(255,214,10,0.35)]">
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className={`text-[10px] tracking-wider px-2 py-0.5 rounded-md border ${catClass}`}>
@@ -50,14 +50,14 @@ export const MarketCard = ({ market }: { market: Market }) => {
       <div className="flex gap-2">
         <button
           type="button"
-          className="flex-1 flex items-center justify-between rounded-[0.5rem] border border-[#16A34A]/30 dark:border-[#22C55E]/30 bg-[#16A34A]/5 dark:bg-[#22C55E]/5 px-3 py-2 text-sm text-[#16A34A] dark:text-[#22C55E] hover:bg-[#16A34A]/10 dark:hover:bg-[#22C55E]/10 transition-colors"
+          className="flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#16A34A]/30 bg-[#16A34A]/5 px-3 py-2 text-sm text-[#16A34A] transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#16A34A]/60 hover:bg-[#16A34A]/15 hover:shadow-[0_12px_24px_-14px_rgba(22,163,74,0.75)] active:translate-y-0 active:scale-[1.01] dark:border-[#22C55E]/30 dark:bg-[#22C55E]/5 dark:text-[#22C55E] dark:hover:bg-[#22C55E]/10"
         >
           <span>Yes</span>
           <span className="font-mono font-semibold">{yesPct}%</span>
         </button>
         <button
           type="button"
-          className="flex-1 flex items-center justify-between rounded-[0.5rem] border border-[#DC2626]/30 dark:border-[#EF4444]/30 bg-[#DC2626]/5 dark:bg-[#EF4444]/5 px-3 py-2 text-sm text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626]/10 dark:hover:bg-[#EF4444]/10 transition-colors"
+          className="flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#DC2626]/30 bg-[#DC2626]/5 px-3 py-2 text-sm text-[#DC2626] transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#DC2626]/60 hover:bg-[#DC2626]/15 hover:shadow-[0_12px_24px_-14px_rgba(220,38,38,0.75)] active:translate-y-0 active:scale-[1.01] dark:border-[#EF4444]/30 dark:bg-[#EF4444]/5 dark:text-[#EF4444] dark:hover:bg-[#EF4444]/10"
         >
           <span>No</span>
           <span className="font-mono font-semibold">{noPct}%</span>
