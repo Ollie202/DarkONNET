@@ -115,29 +115,51 @@
   background: var(--color-base-100);
 }
 
-.theme-transitioning,
-.theme-transitioning body,
-.theme-transitioning header,
-.theme-transitioning aside,
-.theme-transitioning main,
-.theme-transitioning section,
-.theme-transitioning article,
-.theme-transitioning button,
-.theme-transitioning a,
-.theme-transitioning input,
-.theme-transitioning textarea,
-.theme-transitioning select,
-.theme-transitioning .dropdown-content {
-  transition:
-    background-color 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    color 420ms cubic-bezier(0.22, 1, 0.36, 1);
+.theme-view-transition *,
+.theme-view-transition *::before,
+.theme-view-transition *::after {
+  transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 360ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  animation-name: theme-fade-out;
+}
+
+::view-transition-new(root) {
+  animation-name: theme-fade-in;
+}
+
+@keyframes theme-fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes theme-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .theme-transitioning,
-  .theme-transitioning * {
-    transition-duration: 1ms !important;
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 1ms;
   }
 }
 

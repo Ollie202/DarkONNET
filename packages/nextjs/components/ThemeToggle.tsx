@@ -15,10 +15,18 @@ export const ThemeToggle = () => {
 
   const toggleTheme = () => {
     const root = document.documentElement;
+    const viewTransitionDocument = document as Document & {
+      startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+    };
 
-    root.classList.add("theme-transitioning");
-    setTheme(nextTheme);
-    window.setTimeout(() => root.classList.remove("theme-transitioning"), 480);
+    if (!viewTransitionDocument.startViewTransition) {
+      setTheme(nextTheme);
+      return;
+    }
+
+    root.classList.add("theme-view-transition");
+    const transition = viewTransitionDocument.startViewTransition(() => setTheme(nextTheme));
+    transition.finished.finally(() => root.classList.remove("theme-view-transition"));
   };
 
   return (
