@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Clock, Flame, Lock } from "lucide-react";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
 import { type Market, formatTimeRemaining } from "~~/lib/mockMarkets";
@@ -15,7 +16,7 @@ const categoryStyles: Record<Market["category"], string> = {
   esports: "text-[#7C3AED] dark:text-[#A78BFA] border-[#7C3AED]/30 dark:border-[#A78BFA]/30",
 };
 
-const marketImages: Record<string, string> = {
+export const marketImages: Record<string, string> = {
   "oil-100-june": "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=900&q=80",
   "middle-east-supply": "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=900&q=80",
   "global-growth-31": "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=900&q=80",
@@ -46,7 +47,7 @@ const marketImages: Record<string, string> = {
   "csgo-major-eu": "https://images.unsplash.com/photo-1542751110-97427bbecf20?auto=format&fit=crop&w=900&q=80",
 };
 
-const fallbackImages: Record<Market["category"], string> = {
+export const fallbackImages: Record<Market["category"], string> = {
   crypto: marketImages["btc-150k-2026"],
   politics: marketImages["us-midterms-house"],
   sports: marketImages["argentina-wc-2026"],
@@ -58,15 +59,36 @@ const fallbackImages: Record<Market["category"], string> = {
 };
 
 export const MarketCard = ({ market }: { market: Market }) => {
+  const router = useRouter();
   const probability = useLiveProbability(market.yesProbability, market.sentimentSignals);
   const yesPct = Math.round(probability * 100);
   const noPct = 100 - yesPct;
   const timeLeft = formatTimeRemaining(market.endsAt);
   const catClass = categoryStyles[market.category];
   const imageUrl = marketImages[market.id] ?? fallbackImages[market.category];
+  const marketPath = `/markets/${market.id}`;
+
+  const openMarket = () => {
+    router.push(marketPath);
+  };
+
+  const openMarketSide = (side: "yes" | "no") => {
+    router.push(`${marketPath}?side=${side}`);
+  };
 
   return (
-    <article className="group flex cursor-pointer flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] bg-white p-5 transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#FFD60A]/70 hover:shadow-[0_12px_24px_-14px_rgba(10,10,10,0.55)] active:translate-y-0 active:scale-[1.01] dark:border-[#1F1F1F] dark:bg-[#141414] dark:hover:shadow-[0_12px_24px_-14px_rgba(255,214,10,0.45)]">
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={openMarket}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openMarket();
+        }
+      }}
+      className="group flex cursor-pointer flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] bg-white p-5 transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#FFD60A]/70 hover:shadow-[0_12px_24px_-14px_rgba(10,10,10,0.55)] active:translate-y-0 active:scale-[1.01] dark:border-[#1F1F1F] dark:bg-[#141414] dark:hover:shadow-[0_12px_24px_-14px_rgba(255,214,10,0.45)]"
+    >
       <div className="-mx-1 -mt-1 overflow-hidden rounded-lg border border-[#E5E5E5] bg-[#F4F4F5] dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
         <div
           aria-hidden="true"
@@ -101,6 +123,10 @@ export const MarketCard = ({ market }: { market: Market }) => {
       <div className="flex gap-2">
         <button
           type="button"
+          onClick={event => {
+            event.stopPropagation();
+            openMarketSide("yes");
+          }}
           className="flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#16A34A]/30 bg-[#16A34A]/5 px-3 py-2 text-sm text-[#16A34A] transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#16A34A]/60 hover:bg-[#16A34A]/15 hover:shadow-[0_12px_24px_-14px_rgba(22,163,74,0.75)] active:translate-y-0 active:scale-[1.01] dark:border-[#22C55E]/30 dark:bg-[#22C55E]/5 dark:text-[#22C55E] dark:hover:bg-[#22C55E]/10"
         >
           <span>Yes</span>
@@ -108,6 +134,10 @@ export const MarketCard = ({ market }: { market: Market }) => {
         </button>
         <button
           type="button"
+          onClick={event => {
+            event.stopPropagation();
+            openMarketSide("no");
+          }}
           className="flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#DC2626]/30 bg-[#DC2626]/5 px-3 py-2 text-sm text-[#DC2626] transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#DC2626]/60 hover:bg-[#DC2626]/15 hover:shadow-[0_12px_24px_-14px_rgba(220,38,38,0.75)] active:translate-y-0 active:scale-[1.01] dark:border-[#EF4444]/30 dark:bg-[#EF4444]/5 dark:text-[#EF4444] dark:hover:bg-[#EF4444]/10"
         >
           <span>No</span>
