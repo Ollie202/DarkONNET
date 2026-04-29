@@ -14,16 +14,11 @@ export const ThemeToggle = () => {
   const nextTheme = isDark ? "light" : "dark";
 
   const toggleTheme = () => {
-    const viewTransitionDocument = document as Document & {
-      startViewTransition?: (callback: () => void) => void;
-    };
+    const root = document.documentElement;
 
-    if (!viewTransitionDocument.startViewTransition) {
-      setTheme(nextTheme);
-      return;
-    }
-
-    viewTransitionDocument.startViewTransition(() => setTheme(nextTheme));
+    root.classList.add("theme-transitioning");
+    setTheme(nextTheme);
+    window.setTimeout(() => root.classList.remove("theme-transitioning"), 480);
   };
 
   return (
