@@ -409,7 +409,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                             <div className="mt-3 flex flex-wrap items-center gap-3">
                               <button
                                 type="button"
-                                onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                                onClick={() => {
+                                  setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                                  if (replies.length > 0) {
+                                    setExpandedThreads(prev => ({ ...prev, [comment.id]: true }));
+                                  }
+                                }}
                                 className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
                               >
                                 <MessageCircle size={13} />
@@ -446,7 +451,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                           </button>
                         </div>
 
-                        {replyingTo === comment.id && !isExpanded && (
+                        {replyingTo === comment.id && (!isExpanded || replies.length === 0) && (
                           <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
                             <textarea
                               value={replyDrafts[comment.id] ?? ""}
@@ -468,9 +473,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                         )}
 
                         {isExpanded && replies.length > 0 && (
-                          <div className="mt-4 space-y-3 border-l border-[#E5E5E5] pl-3 dark:border-[#1F1F1F]">
+                          <div className="mt-4 ml-3 border-l border-[#E5E5E5] pl-4 dark:border-[#1F1F1F]">
                             {replies.map(reply => (
-                              <div key={reply.id} className="rounded-md bg-white p-3 dark:bg-[#141414]">
+                              <div
+                                key={reply.id}
+                                className="border-b border-[#E5E5E5] py-3 first:pt-0 last:border-b-0 dark:border-[#1F1F1F]"
+                              >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -489,7 +497,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                                     <button
                                       type="button"
                                       onClick={() => setReplyingTo(replyingTo === reply.id ? null : reply.id)}
-                                      className="mt-3 inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-[#F8FAFC] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#0A0A0A] dark:hover:text-[#FFD60A]"
+                                      className="mt-3 inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
                                     >
                                       <MessageCircle size={13} />
                                       Reply
@@ -512,7 +520,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                               </div>
                             ))}
                             {replyingInsideThread && (
-                              <div className="flex gap-2 border-l border-[#FFD60A]/50 pl-3">
+                              <div className="flex gap-2 pt-3">
                                 <textarea
                                   value={replyDraft}
                                   onChange={event =>
