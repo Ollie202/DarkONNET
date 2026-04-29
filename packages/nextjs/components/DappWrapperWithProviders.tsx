@@ -9,7 +9,8 @@ import { RelayerCleartext, hardhatCleartextConfig } from "@zama-fhe/sdk/cleartex
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { useTheme } from "next-themes";
 import { Toaster } from "react-hot-toast";
-import { WagmiProvider, useChainId } from "wagmi";
+import { sepolia } from "viem/chains";
+import { WagmiProvider, useAccount, useChainId, useSwitchChain } from "wagmi";
 import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/helper";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
@@ -73,6 +74,22 @@ const ZamaRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+const SepoliaDefaultNetwork = () => {
+  const chainId = useChainId();
+  const { isConnected } = useAccount();
+  const { switchChain } = useSwitchChain();
+
+  useEffect(() => {
+    if (!isConnected || chainId === sepolia.id) {
+      return;
+    }
+
+    switchChain?.({ chainId: sepolia.id });
+  }, [chainId, isConnected, switchChain]);
+
+  return null;
+};
+
 export const DappWrapperWithProviders = ({ children }: { children: React.ReactNode }) => {
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
@@ -87,8 +104,10 @@ export const DappWrapperWithProviders = ({ children }: { children: React.ReactNo
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           avatar={BlockieAvatar}
+          initialChain={sepolia}
           theme={mounted ? (isDarkMode ? darkTheme() : lightTheme()) : lightTheme()}
         >
+          <SepoliaDefaultNetwork />
           <ZamaRuntimeProvider>
             <ProgressBar height="3px" color="#2299dd" />
             <div className={`flex flex-col min-h-screen`}>
