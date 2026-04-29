@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarClock, Lock, MessageCircle, ShieldCheck, ThumbsUp } from "lucide-react";
+import { ArrowLeft, CalendarClock, ChevronDown, Lock, MessageCircle, ShieldCheck, ThumbsUp } from "lucide-react";
 import { useAccount } from "wagmi";
 import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
@@ -24,6 +24,7 @@ type MarketComment = {
   likes: number;
   liked: boolean;
   replyTo?: string;
+  parentId?: string;
 };
 
 type MarketDetailProps = {
@@ -52,6 +53,7 @@ const sampleComments: MarketComment[] = [
     id: "comment-2",
     author: "RiskDesk",
     replyTo: "MacroMira",
+    parentId: "comment-1",
     createdAt: Date.now() - 8 * 60 * 1000,
     time: "8m ago",
     text: "Same read here. I think the next benchmark print decides this.",
@@ -62,6 +64,7 @@ const sampleComments: MarketComment[] = [
     id: "comment-3",
     author: "MacroMira",
     replyTo: "RiskDesk",
+    parentId: "comment-1",
     createdAt: Date.now() - 5 * 60 * 1000,
     time: "5m ago",
     text: "Exactly. The resolution wording matters more than the headline itself.",
@@ -128,6 +131,9 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [comments, setComments] = useState<MarketComment[]>(sampleComments);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({
+    "comment-1": true,
+  });
   const imageUrl = marketImages[market.id] ?? fallbackImages[market.category];
   const selectedTokenInfo = walletTokens.find(token => token.symbol === selectedToken) ?? walletTokens[0];
   const parsedAmount = Number(amount);
@@ -155,12 +161,26 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       maximumFractionDigits: value >= 1 ? 2 : 4,
     });
 
+  const topLevelComments = useMemo(() => {
+    return comments.filter(comment => !comment.parentId);
+  }, [comments]);
+
+  const repliesByParent = useMemo(() => {
+    return comments.reduce<Record<string, MarketComment[]>>((groups, comment) => {
+      if (!comment.parentId) return groups;
+      return {
+        ...groups,
+        [comment.parentId]: [...(groups[comment.parentId] ?? []), comment].sort((a, b) => a.createdAt - b.createdAt),
+      };
+    }, {});
+  }, [comments]);
+
   const sortedComments = useMemo(() => {
-    return [...comments].sort((a, b) => {
+    return [...topLevelComments].sort((a, b) => {
       if (commentSort === "new") return b.createdAt - a.createdAt;
       return b.likes - a.likes || b.createdAt - a.createdAt;
     });
-  }, [commentSort, comments]);
+  }, [commentSort, topLevelComments]);
 
   const addComment = () => {
     const text = commentDraft.trim();
@@ -188,6 +208,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
     const parentComment = comments.find(comment => comment.id === targetId);
     const parentAuthor = parentComment?.author ?? "someone";
+    const parentId = parentComment?.parentId ?? targetId;
     const replyAuthor = parentAuthor === currentProfileName ? "0x44...91cB" : currentProfileName;
 
     setComments(prev => [
@@ -195,6 +216,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
         id: `comment-${Date.now()}`,
         author: replyAuthor,
         replyTo: parentAuthor,
+        parentId,
         createdAt: Date.now(),
         time: "Just now",
         text,
@@ -214,7 +236,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
     setReplyDrafts(prev => ({ ...prev, [targetId]: "" }));
     setReplyingTo(null);
-    setCommentSort("new");
+    setExpandedThreads(prev => ({ ...prev, [parentId]: true }));
   };
 
   const toggleLike = (commentId: string) => {
@@ -361,72 +383,156 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 </div>
 
                 <div className="mt-3 space-y-2">
-                  {sortedComments.map(comment => (
-                    <article
-                      key={comment.id}
-                      className="rounded-lg border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                              {comment.author}
-                            </span>
-                            <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{comment.time}</span>
-                          </div>
-                          {comment.replyTo && (
-                            <div className="mt-2 text-xs font-medium text-[#525252] dark:text-[#A1A1A1]">
-                              replying <span className="text-[#0A0A0A] dark:text-[#FFD60A]">@{comment.replyTo}</span>
+                  {sortedComments.map(comment => {
+                    const replies = repliesByParent[comment.id] ?? [];
+                    const isExpanded = expandedThreads[comment.id] ?? false;
+
+                    return (
+                      <article
+                        key={comment.id}
+                        className="rounded-lg border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                                {comment.author}
+                              </span>
+                              <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{comment.time}</span>
                             </div>
-                          )}
-                          <p className="mt-2 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">{comment.text}</p>
+                            <p className="mt-2 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">{comment.text}</p>
 
-                          <div className="mt-3 flex items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
-                            >
-                              <MessageCircle size={13} />
-                              Reply
-                            </button>
+                            <div className="mt-3 flex flex-wrap items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                                className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+                              >
+                                <MessageCircle size={13} />
+                                Reply
+                              </button>
+                              {replies.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedThreads(prev => ({ ...prev, [comment.id]: !isExpanded }))}
+                                  className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+                                  aria-expanded={isExpanded}
+                                >
+                                  <ChevronDown
+                                    size={14}
+                                    className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                                  />
+                                  {replies.length} {replies.length === 1 ? "reply" : "replies"}
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => toggleLike(comment.id)}
-                          aria-pressed={comment.liked}
-                          className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-semibold transition-colors ${
-                            comment.liked
-                              ? "border-[#FFD60A]/70 bg-[#FFD60A]/15 text-[#0A0A0A] dark:text-[#FFD60A]"
-                              : "border-[#E5E5E5] text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
-                          }`}
-                        >
-                          <ThumbsUp size={13} className={comment.liked ? "fill-current" : ""} />
-                          {comment.likes}
-                        </button>
-                      </div>
-
-                      {replyingTo === comment.id && (
-                        <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
-                          <textarea
-                            value={replyDrafts[comment.id] ?? ""}
-                            onChange={event => setReplyDrafts(prev => ({ ...prev, [comment.id]: event.target.value }))}
-                            placeholder={`Reply to ${comment.author}...`}
-                            className="min-h-16 flex-1 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]"
-                          />
                           <button
                             type="button"
-                            onClick={() => addReply(comment.id)}
-                            disabled={!replyDrafts[comment.id]?.trim()}
-                            className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                            onClick={() => toggleLike(comment.id)}
+                            aria-pressed={comment.liked}
+                            className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-semibold transition-colors ${
+                              comment.liked
+                                ? "border-[#FFD60A]/70 bg-[#FFD60A]/15 text-[#0A0A0A] dark:text-[#FFD60A]"
+                                : "border-[#E5E5E5] text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                            }`}
                           >
-                            Send
+                            <ThumbsUp size={13} className={comment.liked ? "fill-current" : ""} />
+                            {comment.likes}
                           </button>
                         </div>
-                      )}
-                    </article>
-                  ))}
+
+                        {replyingTo === comment.id && (
+                          <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
+                            <textarea
+                              value={replyDrafts[comment.id] ?? ""}
+                              onChange={event =>
+                                setReplyDrafts(prev => ({ ...prev, [comment.id]: event.target.value }))
+                              }
+                              placeholder={`Reply to ${comment.author}...`}
+                              className="min-h-16 flex-1 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => addReply(comment.id)}
+                              disabled={!replyDrafts[comment.id]?.trim()}
+                              className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                            >
+                              Send
+                            </button>
+                          </div>
+                        )}
+
+                        {isExpanded && replies.length > 0 && (
+                          <div className="mt-4 space-y-3 border-l border-[#E5E5E5] pl-3 dark:border-[#1F1F1F]">
+                            {replies.map(reply => (
+                              <div key={reply.id} className="rounded-md bg-white p-3 dark:bg-[#141414]">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="font-mono text-xs font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                                        {reply.author}
+                                      </span>
+                                      <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">{reply.time}</span>
+                                      <span className="text-xs font-medium text-[#525252] dark:text-[#A1A1A1]">
+                                        replying{" "}
+                                        <span className="text-[#0A0A0A] dark:text-[#FFD60A]">@{reply.replyTo}</span>
+                                      </span>
+                                    </div>
+                                    <p className="mt-2 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
+                                      {reply.text}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => setReplyingTo(replyingTo === reply.id ? null : reply.id)}
+                                      className="mt-3 inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-[#F8FAFC] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#0A0A0A] dark:hover:text-[#FFD60A]"
+                                    >
+                                      <MessageCircle size={13} />
+                                      Reply
+                                    </button>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleLike(reply.id)}
+                                    aria-pressed={reply.liked}
+                                    className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-semibold transition-colors ${
+                                      reply.liked
+                                        ? "border-[#FFD60A]/70 bg-[#FFD60A]/15 text-[#0A0A0A] dark:text-[#FFD60A]"
+                                        : "border-[#E5E5E5] text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                                    }`}
+                                  >
+                                    <ThumbsUp size={13} className={reply.liked ? "fill-current" : ""} />
+                                    {reply.likes}
+                                  </button>
+                                </div>
+
+                                {replyingTo === reply.id && (
+                                  <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
+                                    <textarea
+                                      value={replyDrafts[reply.id] ?? ""}
+                                      onChange={event =>
+                                        setReplyDrafts(prev => ({ ...prev, [reply.id]: event.target.value }))
+                                      }
+                                      placeholder={`Reply to ${reply.author}...`}
+                                      className="min-h-16 flex-1 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => addReply(reply.id)}
+                                      disabled={!replyDrafts[reply.id]?.trim()}
+                                      className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                                    >
+                                      Send
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
               </div>
             </div>
