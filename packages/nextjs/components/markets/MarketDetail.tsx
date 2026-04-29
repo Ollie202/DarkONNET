@@ -9,6 +9,7 @@ import { SentimentBar, useLiveProbability } from "~~/components/markets/Sentimen
 import { type Market, formatTimeRemaining } from "~~/lib/mockMarkets";
 
 type SelectedSide = "yes" | "no" | null;
+type AmountMode = "token" | "usd";
 
 type MarketDetailProps = {
   market: Market;
@@ -17,9 +18,9 @@ type MarketDetailProps = {
 const presetAmounts = [1, 5, 10, 20, 50];
 
 const walletTokens = [
-  { symbol: "ETH", label: "Sepolia ETH", balance: "0.4200", fiat: "$1,420.00" },
-  { symbol: "USDC", label: "Mock USDC", balance: "250.00", fiat: "$250.00" },
-  { symbol: "ZAMA", label: "Test ZAMA", balance: "1,000.00", fiat: "$1,000.00" },
+  { symbol: "ETH", label: "Sepolia ETH", balance: 0.42, usdPrice: 3380 },
+  { symbol: "USDC", label: "Mock USDC", balance: 250, usdPrice: 1 },
+  { symbol: "ZAMA", label: "Test ZAMA", balance: 1000, usdPrice: 0.12 },
 ];
 
 const marketDescriptions: Partial<Record<string, string>> = {
@@ -51,9 +52,14 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     initialSide === "yes" || initialSide === "no" ? initialSide : null,
   );
   const [selectedToken, setSelectedToken] = useState(walletTokens[0].symbol);
+  const [amountMode, setAmountMode] = useState<AmountMode>("usd");
   const [amount, setAmount] = useState("");
   const imageUrl = marketImages[market.id] ?? fallbackImages[market.category];
   const selectedTokenInfo = walletTokens.find(token => token.symbol === selectedToken) ?? walletTokens[0];
+  const parsedAmount = Number(amount);
+  const tokenAmount = amountMode === "token" ? parsedAmount || 0 : (parsedAmount || 0) / selectedTokenInfo.usdPrice;
+  const usdAmount = amountMode === "usd" ? parsedAmount || 0 : (parsedAmount || 0) * selectedTokenInfo.usdPrice;
+  const hasInsufficientBalance = tokenAmount > selectedTokenInfo.balance;
 
   useEffect(() => {
     const side = searchParams.get("side");
@@ -61,16 +67,23 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   }, [searchParams]);
 
   const estimatedShares = useMemo(() => {
-    const parsed = Number(amount);
-    if (!parsed || !selectedSide) return "0.00";
+    if (!usdAmount || !selectedSide || hasInsufficientBalance) return "0.00";
     const price = selectedSide === "yes" ? probability : 1 - probability;
-    return (parsed / Math.max(price, 0.01)).toFixed(2);
-  }, [amount, probability, selectedSide]);
+    return (usdAmount / Math.max(price, 0.01)).toFixed(2);
+  }, [hasInsufficientBalance, probability, selectedSide, usdAmount]);
+
+  const formatTokenBalance = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  const formatUsd = (value: number) =>
+    value.toLocaleString(undefined, {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: value >= 1 ? 2 : 4,
+    });
 
   return (
-    <section className="px-6 py-6">
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="min-w-0">
+    <section className="px-6 py-6 lg:h-[calc(100vh-3.5rem)] lg:overflow-hidden">
+      <div className="mx-auto grid max-w-7xl gap-6 lg:h-full lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 lg:overflow-y-auto lg:pr-2">
           <Link
             href="/"
             className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-[#525252] transition-colors hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
@@ -80,7 +93,10 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
           </Link>
 
           <div className="overflow-hidden rounded-lg border border-[#E5E5E5] bg-white dark:border-[#1F1F1F] dark:bg-[#141414]">
-            <div className="relative h-56 bg-cover bg-center md:h-72" style={{ backgroundImage: `url(${imageUrl})` }}>
+            <div
+              className="relative h-56 bg-center bg-no-repeat md:h-72"
+              style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "100% auto" }}
+            >
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
               <div className="absolute bottom-5 left-5 right-5">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -164,7 +180,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
           </div>
         </div>
 
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="lg:h-full lg:overflow-y-auto lg:pr-1">
           <div className="rounded-lg border border-[#E5E5E5] bg-white p-4 shadow-[0_18px_50px_-36px_rgba(10,10,10,0.55)] dark:border-[#1F1F1F] dark:bg-[#141414]">
             <div className="mb-4 flex items-center justify-between">
               <div>
@@ -215,13 +231,36 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 ))}
               </select>
               <span className="mt-2 flex justify-between text-xs text-[#525252] dark:text-[#A1A1A1]">
-                <span>Balance {selectedTokenInfo.balance}</span>
-                <span>{selectedTokenInfo.fiat}</span>
+                <span>
+                  Balance {formatTokenBalance(selectedTokenInfo.balance)} {selectedTokenInfo.symbol}
+                </span>
+                <span>{formatUsd(selectedTokenInfo.balance * selectedTokenInfo.usdPrice)}</span>
               </span>
             </label>
 
             <div className="mt-5">
-              <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Amount</span>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Amount</span>
+                <div className="grid grid-cols-2 rounded-md border border-[#E5E5E5] p-0.5 text-xs font-semibold dark:border-[#1F1F1F]">
+                  {(["usd", "token"] as AmountMode[]).map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        setAmount("");
+                        setAmountMode(mode);
+                      }}
+                      className={`h-7 cursor-pointer rounded px-3 transition-colors ${
+                        amountMode === mode
+                          ? "bg-[#FFD60A] text-[#0A0A0A]"
+                          : "text-[#525252] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
+                      }`}
+                    >
+                      {mode === "usd" ? "USD" : selectedTokenInfo.symbol}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {presetAmounts.map(preset => (
                   <button
@@ -230,12 +269,18 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                     onClick={() => setAmount(String(preset))}
                     className="h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] transition-colors hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                   >
-                    ${preset}
+                    {amountMode === "usd" ? `$${preset}` : `${preset} ${selectedTokenInfo.symbol}`}
                   </button>
                 ))}
                 <button
                   type="button"
-                  onClick={() => setAmount(selectedTokenInfo.balance.replace(/,/g, ""))}
+                  onClick={() =>
+                    setAmount(
+                      amountMode === "usd"
+                        ? String((selectedTokenInfo.balance * selectedTokenInfo.usdPrice).toFixed(2))
+                        : String(selectedTokenInfo.balance),
+                    )
+                  }
                   className="h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] transition-colors hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                 >
                   Max
@@ -246,9 +291,19 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 min="0"
                 value={amount}
                 onChange={event => setAmount(event.target.value)}
-                placeholder="Enter amount"
-                className="mt-3 h-12 w-full rounded-md border border-[#E5E5E5] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
+                placeholder={amountMode === "usd" ? "Enter USD amount" : `Enter ${selectedTokenInfo.symbol} amount`}
+                className={`mt-3 h-12 w-full rounded-md border bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:bg-[#0A0A0A] dark:text-[#FAFAFA] ${
+                  hasInsufficientBalance ? "border-[#DC2626]" : "border-[#E5E5E5] dark:border-[#1F1F1F]"
+                }`}
               />
+              <div className="mt-2 flex justify-between text-xs">
+                <span className="text-[#525252] dark:text-[#A1A1A1]">
+                  {amountMode === "usd"
+                    ? `${formatTokenBalance(tokenAmount)} ${selectedTokenInfo.symbol}`
+                    : formatUsd(usdAmount)}
+                </span>
+                {hasInsufficientBalance && <span className="font-semibold text-[#DC2626]">Insufficient Balance</span>}
+              </div>
             </div>
 
             <div className="mt-5 rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-3 text-sm dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
@@ -266,7 +321,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
             <button
               type="button"
-              disabled={!selectedSide || !amount}
+              disabled={!selectedSide || !amount || hasInsufficientBalance}
               className="mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
             >
               <ShieldCheck size={17} />

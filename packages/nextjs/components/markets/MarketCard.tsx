@@ -78,8 +78,8 @@ export const MarketCard = ({ market }: { market: Market }) => {
       <div className="pointer-events-none relative z-20 -mx-1 -mt-1 overflow-hidden rounded-lg border border-[#E5E5E5] bg-[#F4F4F5] dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
         <div
           aria-hidden="true"
-          className="h-28 w-full bg-cover bg-center opacity-90 transition-transform duration-200 ease-out group-hover:scale-[1.045]"
-          style={{ backgroundImage: `url(${imageUrl})` }}
+          className="h-32 w-full bg-center bg-no-repeat opacity-90 transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+          style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "100% auto" }}
         />
       </div>
 
