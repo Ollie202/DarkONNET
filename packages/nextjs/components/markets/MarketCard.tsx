@@ -23,7 +23,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
   const catClass = categoryStyles[market.category];
 
   return (
-    <article className="group flex cursor-pointer flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] bg-white p-5 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.015] hover:border-[#FFD60A]/70 hover:shadow-[0_18px_40px_-24px_rgba(10,10,10,0.55)] dark:border-[#1F1F1F] dark:bg-[#141414] dark:hover:shadow-[0_18px_42px_-24px_rgba(255,214,10,0.35)]">
+    <article className="group flex cursor-pointer flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] bg-white p-5 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#FFD60A]/70 hover:shadow-[0_12px_24px_-14px_rgba(10,10,10,0.55)] active:translate-y-0 active:scale-[1.01] dark:border-[#1F1F1F] dark:bg-[#141414] dark:hover:shadow-[0_12px_24px_-14px_rgba(255,214,10,0.45)]">
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className={`text-[10px] tracking-wider px-2 py-0.5 rounded-md border ${catClass}`}>
