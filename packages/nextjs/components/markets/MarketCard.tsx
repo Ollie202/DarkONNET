@@ -15,15 +15,46 @@ const categoryStyles: Record<Market["category"], string> = {
   esports: "text-[#7C3AED] dark:text-[#A78BFA] border-[#7C3AED]/30 dark:border-[#A78BFA]/30",
 };
 
-const categoryImages: Record<Market["category"], string> = {
-  crypto: "https://images.unsplash.com/photo-1640340434855-6084b1f4901c?auto=format&fit=crop&w=900&q=80",
-  politics: "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=900&q=80",
-  sports: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=900&q=80",
-  tech: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=80",
-  culture: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=900&q=80",
-  finance: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=900&q=80",
-  geopolitics: "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=900&q=80",
-  esports: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80",
+const marketImages: Record<string, string> = {
+  "oil-100-june": "https://images.unsplash.com/photo-1518709268805-4e9042af2176?auto=format&fit=crop&w=900&q=80",
+  "middle-east-supply": "https://images.unsplash.com/photo-1494412651409-8963ce7935a7?auto=format&fit=crop&w=900&q=80",
+  "global-growth-31": "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=900&q=80",
+  "fed-cut-summer": "https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?auto=format&fit=crop&w=900&q=80",
+  "ai-stocks-correction":
+    "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=900&q=80",
+  "btc-150k-2026": "https://images.unsplash.com/photo-1621761191319-c6fb62004040?auto=format&fit=crop&w=900&q=80",
+  "us-midterms-house": "https://images.unsplash.com/photo-1580130379624-3a069adbffc5?auto=format&fit=crop&w=900&q=80",
+  "ru-ua-ceasefire-2026":
+    "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=900&q=80",
+  "argentina-wc-2026": "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=900&q=80",
+  "frontier-ai-release": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=900&q=80",
+  "swift-tour-2026": "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=900&q=80",
+  "eth-flippening": "https://images.unsplash.com/photo-1639762681057-408e52192e55?auto=format&fit=crop&w=900&q=80",
+  "starship-orbit-return":
+    "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=900&q=80",
+  "red-sea-normalizes": "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=900&q=80",
+  "sol-etf-2026": "https://images.unsplash.com/photo-1642104704074-907c0698cbd9?auto=format&fit=crop&w=900&q=80",
+  "nba-finals-east": "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=900&q=80",
+  "apple-ai-device": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
+  "uk-election-2026": "https://images.unsplash.com/photo-1486299267070-83823f5448dd?auto=format&fit=crop&w=900&q=80",
+  "drake-album-2026": "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=900&q=80",
+  "lol-worlds-korea": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80",
+  "us-recession-2026": "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=900&q=80",
+  "tesla-robotaxi-5": "https://images.unsplash.com/photo-1536700503339-1e4b06520771?auto=format&fit=crop&w=900&q=80",
+  "taiwan-strait-incident":
+    "https://images.unsplash.com/photo-1569959220744-ff553533f492?auto=format&fit=crop&w=900&q=80",
+  "csgo-major-eu": "https://images.unsplash.com/photo-1542751110-97427bbecf20?auto=format&fit=crop&w=900&q=80",
+};
+
+const fallbackImages: Record<Market["category"], string> = {
+  crypto: marketImages["btc-150k-2026"],
+  politics: marketImages["us-midterms-house"],
+  sports: marketImages["argentina-wc-2026"],
+  tech: marketImages["frontier-ai-release"],
+  culture: marketImages["swift-tour-2026"],
+  finance: marketImages["global-growth-31"],
+  geopolitics: marketImages["ru-ua-ceasefire-2026"],
+  esports: marketImages["lol-worlds-korea"],
 };
 
 export const MarketCard = ({ market }: { market: Market }) => {
@@ -32,6 +63,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
   const noPct = 100 - yesPct;
   const timeLeft = formatTimeRemaining(market.endsAt);
   const catClass = categoryStyles[market.category];
+  const imageUrl = marketImages[market.id] ?? fallbackImages[market.category];
 
   return (
     <article className="group flex cursor-pointer flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] bg-white p-5 transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#FFD60A]/70 hover:shadow-[0_12px_24px_-14px_rgba(10,10,10,0.55)] active:translate-y-0 active:scale-[1.01] dark:border-[#1F1F1F] dark:bg-[#141414] dark:hover:shadow-[0_12px_24px_-14px_rgba(255,214,10,0.45)]">
@@ -39,7 +71,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
         <div
           aria-hidden="true"
           className="h-28 w-full bg-cover bg-center opacity-90 transition-transform duration-200 ease-out group-hover:scale-[1.045]"
-          style={{ backgroundImage: `url(${categoryImages[market.category]})` }}
+          style={{ backgroundImage: `url(${imageUrl})` }}
         />
       </div>
 
