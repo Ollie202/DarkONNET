@@ -131,9 +131,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [comments, setComments] = useState<MarketComment[]>(sampleComments);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({
-    "comment-1": true,
-  });
+  const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const imageUrl = marketImages[market.id] ?? fallbackImages[market.category];
   const selectedTokenInfo = walletTokens.find(token => token.symbol === selectedToken) ?? walletTokens[0];
   const parsedAmount = Number(amount);
@@ -386,6 +384,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                   {sortedComments.map(comment => {
                     const replies = repliesByParent[comment.id] ?? [];
                     const isExpanded = expandedThreads[comment.id] ?? false;
+                    const replyingInsideThread =
+                      replyingTo === comment.id || replies.some(reply => reply.id === replyingTo);
+                    const replyTarget = replyingInsideThread
+                      ? (comments.find(reply => reply.id === replyingTo) ?? comment)
+                      : comment;
+                    const replyDraft = replyDrafts[replyTarget.id] ?? "";
 
                     return (
                       <article
@@ -442,7 +446,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                           </button>
                         </div>
 
-                        {replyingTo === comment.id && (
+                        {replyingTo === comment.id && !isExpanded && (
                           <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
                             <textarea
                               value={replyDrafts[comment.id] ?? ""}
@@ -505,29 +509,28 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                                     {reply.likes}
                                   </button>
                                 </div>
-
-                                {replyingTo === reply.id && (
-                                  <div className="mt-3 flex gap-2 border-l border-[#FFD60A]/50 pl-3">
-                                    <textarea
-                                      value={replyDrafts[reply.id] ?? ""}
-                                      onChange={event =>
-                                        setReplyDrafts(prev => ({ ...prev, [reply.id]: event.target.value }))
-                                      }
-                                      placeholder={`Reply to ${reply.author}...`}
-                                      className="min-h-16 flex-1 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => addReply(reply.id)}
-                                      disabled={!replyDrafts[reply.id]?.trim()}
-                                      className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
-                                    >
-                                      Send
-                                    </button>
-                                  </div>
-                                )}
                               </div>
                             ))}
+                            {replyingInsideThread && (
+                              <div className="flex gap-2 border-l border-[#FFD60A]/50 pl-3">
+                                <textarea
+                                  value={replyDraft}
+                                  onChange={event =>
+                                    setReplyDrafts(prev => ({ ...prev, [replyTarget.id]: event.target.value }))
+                                  }
+                                  placeholder={`Reply to ${replyTarget.author}...`}
+                                  className="min-h-16 flex-1 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => addReply(replyTarget.id)}
+                                  disabled={!replyDraft.trim()}
+                                  className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                                >
+                                  Send
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </article>
