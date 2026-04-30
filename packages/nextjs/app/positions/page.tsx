@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, BarChart3, CheckCircle2, CircleDot, LockKeyhole, XCircle } from "lucide-react";
-import { getLocalPositions } from "~~/lib/localPositions";
+import { closeLocalPosition, getLocalPositions } from "~~/lib/localPositions";
 
 type PositionStatus = "open" | "closed" | "completed";
 
@@ -124,6 +124,22 @@ export default function PositionsPage() {
   );
   const totalPnl = visiblePositions.reduce((total, position) => total + position.pnl, 0);
 
+  const closePosition = (positionId: string) => {
+    closeLocalPosition(positionId);
+    setAllPositions(currentPositions =>
+      currentPositions.map(position =>
+        position.id === positionId
+          ? {
+              ...position,
+              status: "closed",
+              current: position.current.startsWith("Resolved") ? position.current : `${position.current} closed`,
+            }
+          : position,
+      ),
+    );
+    setActiveTab("closed");
+  };
+
   return (
     <section className="px-6 py-6">
       <div className="mx-auto max-w-6xl">
@@ -172,44 +188,71 @@ export default function PositionsPage() {
         </div>
 
         <div className="overflow-hidden rounded-lg border border-[#E5E5E5] bg-white dark:border-[#1F1F1F] dark:bg-[#141414]">
-          <div className="grid grid-cols-[minmax(0,1.8fr)_0.6fr_0.6fr_0.6fr_0.6fr_auto] gap-3 border-b border-[#E5E5E5] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]">
+          <div className="hidden grid-cols-[minmax(0,1.8fr)_0.6fr_0.6fr_0.6fr_0.6fr_auto_auto] gap-3 border-b border-[#E5E5E5] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1] md:grid">
             <span>Market</span>
             <span>Side</span>
             <span>Stake</span>
             <span>Entry</span>
             <span>Current</span>
             <span className="text-right">PNL</span>
+            <span className="text-right">Action</span>
           </div>
 
           <div className="divide-y divide-[#E5E5E5] dark:divide-[#1F1F1F]">
             {visiblePositions.map(position => (
-              <Link
+              <div
                 key={position.id}
-                href={position.href}
-                className="smooth-action grid grid-cols-[minmax(0,1.8fr)_0.6fr_0.6fr_0.6fr_0.6fr_auto] items-center gap-3 px-4 py-4 text-sm hover:bg-[#F8FAFC] dark:hover:bg-[#0A0A0A]"
+                className="grid gap-3 px-4 py-4 text-sm hover:bg-[#F8FAFC] dark:hover:bg-[#0A0A0A] md:grid-cols-[minmax(0,1.8fr)_0.6fr_0.6fr_0.6fr_0.6fr_auto_auto] md:items-center"
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                  <Link
+                    href={position.href}
+                    className="smooth-action block truncate font-semibold text-[#0A0A0A] hover:text-[#A37500] dark:text-[#FAFAFA] dark:hover:text-[#FFD60A]"
+                  >
                     {position.market}
-                  </span>
+                  </Link>
                   <span className="mt-1 flex items-center gap-1 text-xs text-[#525252] dark:text-[#A1A1A1]">
                     <BarChart3 size={13} />
                     {position.status[0].toUpperCase() + position.status.slice(1)}
                   </span>
                 </span>
-                <span className={position.side === "Yes" ? "text-[#16A34A]" : "text-[#DC2626]"}>{position.side}</span>
-                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">{position.stake}</span>
-                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">{position.entry}</span>
-                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">{position.current}</span>
+                <span className={position.side === "Yes" ? "text-[#16A34A]" : "text-[#DC2626]"}>
+                  <span className="text-[#525252] dark:text-[#A1A1A1] md:hidden">Side: </span>
+                  {position.side}
+                </span>
+                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">
+                  <span className="md:hidden">Stake: </span>
+                  {position.stake}
+                </span>
+                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">
+                  <span className="md:hidden">Entry: </span>
+                  {position.entry}
+                </span>
+                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">
+                  <span className="md:hidden">Current: </span>
+                  {position.current}
+                </span>
                 <span
-                  className={`flex items-center justify-end gap-2 font-mono font-semibold ${
+                  className={`flex items-center justify-start gap-2 font-mono font-semibold md:justify-end ${
                     position.pnl >= 0 ? "text-[#16A34A] dark:text-[#22C55E]" : "text-[#DC2626] dark:text-[#EF4444]"
                   }`}
                 >
+                  <span className="font-sans font-normal text-[#525252] dark:text-[#A1A1A1] md:hidden">PNL: </span>
                   {formatPnl(position.pnl)}
                   <ArrowUpRight size={14} />
                 </span>
-              </Link>
+                {position.status === "open" ? (
+                  <button
+                    type="button"
+                    onClick={() => closePosition(position.id)}
+                    className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] px-3 text-xs font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                  >
+                    Close Trade
+                  </button>
+                ) : (
+                  <span className="text-right text-xs text-[#525252] dark:text-[#A1A1A1]">-</span>
+                )}
+              </div>
             ))}
           </div>
         </div>

@@ -64,7 +64,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
   const noPct = 100 - yesPct;
   const timeLeft = formatTimeRemaining(market.endsAt);
   const catClass = categoryStyles[market.category];
-  const imageUrl = marketImages[market.id] ?? fallbackImages[market.category];
+  const imageUrl = market.coverImageDataUrl ?? marketImages[market.id] ?? fallbackImages[market.category];
   const marketPath = `/markets/${market.id}`;
 
   return (
@@ -79,7 +79,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
         <div
           aria-hidden="true"
           className="h-32 w-full bg-center bg-no-repeat opacity-90 transition-transform duration-200 ease-out group-hover:scale-[1.02]"
-          style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "100% auto" }}
+          style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "cover" }}
         />
       </div>
 

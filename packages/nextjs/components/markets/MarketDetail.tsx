@@ -131,13 +131,14 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
-  const imageUrl = marketImages[market.id] ?? fallbackImages[market.category];
+  const imageUrl = market.coverImageDataUrl ?? marketImages[market.id] ?? fallbackImages[market.category];
   const selectedTokenInfo = walletTokens.find(token => token.symbol === selectedToken) ?? walletTokens[0];
   const parsedAmount = Number(amount);
   const tokenAmount = amountMode === "token" ? parsedAmount || 0 : (parsedAmount || 0) / selectedTokenInfo.usdPrice;
   const usdAmount = amountMode === "usd" ? parsedAmount || 0 : (parsedAmount || 0) * selectedTokenInfo.usdPrice;
   const hasInsufficientBalance = tokenAmount > selectedTokenInfo.balance;
   const currentProfileName = profileName || "New user";
+  const isMarketTradable = !market.status || market.status === "open";
 
   useEffect(() => {
     const side = searchParams.get("side");
@@ -258,7 +259,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   };
 
   const reviewBet = () => {
-    if (!selectedSide || !amount || hasInsufficientBalance) return;
+    if (!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance) return;
 
     saveLocalPosition({
       id: `position-${Date.now()}`,
@@ -291,7 +292,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
           <div className="overflow-hidden rounded-lg border border-[#E5E5E5] bg-white dark:border-[#1F1F1F] dark:bg-[#141414]">
             <div
               className="relative h-56 bg-center bg-no-repeat md:h-72"
-              style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "100% auto" }}
+              style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "cover" }}
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
               <div className="absolute bottom-5 left-5 right-5">
@@ -600,16 +601,27 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <div>
                 <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Place Bet</h2>
                 <p className="mt-1 text-xs text-[#525252] dark:text-[#A1A1A1]">
-                  No side is selected until you choose one.
+                  {isMarketTradable
+                    ? "No side is selected until you choose one."
+                    : "This market is waiting for admin review."}
                 </p>
               </div>
               <Lock size={18} className="text-[#FFD60A]" />
             </div>
 
+            {!isMarketTradable && (
+              <div className="mb-4 rounded-md border border-[#FFD60A]/40 bg-[#FFD60A]/10 p-3 text-sm font-medium text-[#A37500] dark:text-[#FFD60A]">
+                {market.status === "declined"
+                  ? "This market request was declined, so betting is disabled."
+                  : "This market request is pending approval. Betting unlocks after an admin accepts it."}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedSide("yes")}
+                disabled={!isMarketTradable}
                 className={`smooth-action h-11 cursor-pointer rounded-md border px-3 text-sm font-semibold ${
                   selectedSide === "yes"
                     ? "border-[#16A34A] bg-[#16A34A] text-white"
@@ -621,6 +633,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <button
                 type="button"
                 onClick={() => setSelectedSide("no")}
+                disabled={!isMarketTradable}
                 className={`smooth-action h-11 cursor-pointer rounded-md border px-3 text-sm font-semibold ${
                   selectedSide === "no"
                     ? "border-[#DC2626] bg-[#DC2626] text-white"
@@ -740,7 +753,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             <button
               type="button"
               onClick={reviewBet}
-              disabled={!selectedSide || !amount || hasInsufficientBalance}
+              disabled={!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance}
               className="smooth-action mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
             >
               <ShieldCheck size={17} />

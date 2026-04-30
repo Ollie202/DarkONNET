@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bell, BriefcaseBusiness, Check, Mail, UserRound } from "lucide-react";
+import { Bell, Check, Mail, UserRound } from "lucide-react";
 import { type ProfileSettings, useProfile } from "~~/components/profile/ProfileContext";
-
-const mockPositions = [
-  { market: "Will the Fed cut rates before the end of summer 2026?", side: "No", amount: "$20", pnl: "+$3.40" },
-  { market: "Will BTC reach $150k before 2026 ends?", side: "Yes", amount: "$10", pnl: "-$1.12" },
-  { market: "Will oil trade above $100 before July?", side: "No", amount: "$5", pnl: "+$0.86" },
-];
 
 const profileSnapshot = (profile: ProfileSettings) => JSON.stringify(profile);
 
@@ -50,6 +44,22 @@ export default function ProfilePage() {
     setHasConfirmed(true);
   };
 
+  useEffect(() => {
+    if (!hasConfirmed) return;
+
+    const timeout = window.setTimeout(() => setHasConfirmed(false), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [hasConfirmed]);
+
+  const notificationSummary = useMemo(() => {
+    if (draft.receiveUpdates && draft.receivePositionNotifications) {
+      return "Platform updates and open-position alerts are enabled.";
+    }
+    if (draft.receiveUpdates) return "Platform and market update notifications are enabled.";
+    if (draft.receivePositionNotifications) return "Open-position alerts are enabled.";
+    return "Notifications are currently muted.";
+  }, [draft.receivePositionNotifications, draft.receiveUpdates]);
+
   return (
     <section className="px-6 py-6">
       <div className="mx-auto max-w-6xl">
@@ -57,7 +67,7 @@ export default function ProfilePage() {
           <div>
             <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Profile</h1>
             <p className="mt-2 max-w-2xl text-sm text-[#525252] dark:text-[#A1A1A1]">
-              Manage your private market identity, notification preferences, and open positions.
+              Manage your private market identity and notification preferences.
             </p>
           </div>
           <div className="rounded-lg border border-[#E5E5E5] bg-white px-4 py-3 dark:border-[#1F1F1F] dark:bg-[#141414]">
@@ -66,7 +76,7 @@ export default function ProfilePage() {
           </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <form className="rounded-lg border border-[#E5E5E5] bg-white p-5 dark:border-[#1F1F1F] dark:bg-[#141414]">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FFD60A] text-[#0A0A0A]">
@@ -154,41 +164,10 @@ export default function ProfilePage() {
           <aside className="space-y-4">
             <div className="rounded-lg border border-[#E5E5E5] bg-white p-5 dark:border-[#1F1F1F] dark:bg-[#141414]">
               <div className="flex items-center gap-3">
-                <BriefcaseBusiness size={18} className="text-[#FFD60A]" />
-                <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Open Positions</h2>
-              </div>
-              <div className="mt-4 space-y-3">
-                {mockPositions.map(position => (
-                  <div
-                    key={position.market}
-                    className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-3 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]"
-                  >
-                    <div className="text-sm font-medium leading-5 text-[#0A0A0A] dark:text-[#FAFAFA]">
-                      {position.market}
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-[#525252] dark:text-[#A1A1A1]">
-                      <span>
-                        {position.side} / {position.amount}
-                      </span>
-                      <span className={position.pnl.startsWith("+") ? "text-[#16A34A]" : "text-[#DC2626]"}>
-                        {position.pnl}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-[#E5E5E5] bg-white p-5 dark:border-[#1F1F1F] dark:bg-[#141414]">
-              <div className="flex items-center gap-3">
                 <Bell size={18} className="text-[#FFD60A]" />
                 <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Notification Mode</h2>
               </div>
-              <p className="mt-3 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
-                {draft.receivePositionNotifications
-                  ? "Position alerts are enabled for active markets."
-                  : "Position alerts are currently muted."}
-              </p>
+              <p className="mt-3 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">{notificationSummary}</p>
             </div>
           </aside>
         </div>

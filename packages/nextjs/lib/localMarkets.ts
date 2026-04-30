@@ -4,26 +4,31 @@ import { type Market, type MarketCategory, mockMarkets } from "~~/lib/mockMarket
 
 export type LocalMarket = Market & {
   createdAt: string;
-  status: "draft" | "pending" | "open";
+  updatedAt?: string;
+  status: "draft" | "pending" | "open" | "declined";
   rules: string;
   sources: string[];
   coverImageName?: string;
-  softCap: number;
+  coverImageDataUrl?: string;
+  creatorStake: number;
   token: string;
+  adminNote?: string;
 };
 
 const MARKETS_KEY = "markets:created";
 const DRAFT_KEY = "markets:create-draft";
+const MARKET_REQUEST_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export type CreateMarketDraft = {
   question: string;
   category: "" | MarketCategory;
   coverImageName: string;
+  coverImageDataUrl: string;
   sources: string[];
   rules: string;
   presaleEndDate: string;
   resolutionDate: string;
-  softCap: string;
+  creatorStake: string;
   token: string;
 };
 
@@ -31,11 +36,12 @@ export const emptyCreateMarketDraft: CreateMarketDraft = {
   question: "",
   category: "",
   coverImageName: "",
+  coverImageDataUrl: "",
   sources: [""],
   rules: "",
   presaleEndDate: "",
   resolutionDate: "",
-  softCap: "",
+  creatorStake: "1",
   token: "Testnet ETH",
 };
 
@@ -58,9 +64,15 @@ const slugify = (value: string) =>
     .replace(/(^-|-$)+/g, "")
     .slice(0, 48);
 
-export const getLocalMarkets = () => readJson<LocalMarket[]>(MARKETS_KEY, []);
+export const getLocalMarkets = () =>
+  readJson<LocalMarket[]>(MARKETS_KEY, []).map(market => ({
+    ...market,
+    creatorStake: market.creatorStake ?? 1,
+    status: market.status ?? "open",
+    sources: market.sources ?? [],
+  }));
 
-export const getAllMarkets = () => [...getLocalMarkets().filter(market => market.status !== "draft"), ...mockMarkets];
+export const getAllMarkets = () => [...getLocalMarkets().filter(market => market.status === "open"), ...mockMarkets];
 
 export const getLocalMarketById = (id: string) => getLocalMarkets().find(market => market.id === id);
 
@@ -70,7 +82,31 @@ export const saveLocalMarket = (market: LocalMarket) => {
   window.dispatchEvent(new Event("local-markets-updated"));
 };
 
-export const getCreateMarketDraft = () => readJson<CreateMarketDraft>(DRAFT_KEY, emptyCreateMarketDraft);
+export const updateLocalMarketStatus = (marketId: string, status: LocalMarket["status"], adminNote = "") => {
+  const nextMarkets = getLocalMarkets().map(market =>
+    market.id === marketId ? { ...market, status, adminNote, updatedAt: new Date().toISOString() } : market,
+  );
+  window.localStorage.setItem(MARKETS_KEY, JSON.stringify(nextMarkets));
+  window.dispatchEvent(new Event("local-markets-updated"));
+};
+
+export const getMarketRequestCooldown = () => {
+  const latestRequestTime = getLocalMarkets()
+    .filter(market => market.status !== "draft")
+    .map(market => new Date(market.createdAt).getTime())
+    .filter(Number.isFinite)
+    .sort((a, b) => b - a)[0];
+
+  if (!latestRequestTime) return { canSubmit: true, remainingMs: 0 };
+
+  const remainingMs = Math.max(0, latestRequestTime + MARKET_REQUEST_COOLDOWN_MS - Date.now());
+  return { canSubmit: remainingMs === 0, remainingMs };
+};
+
+export const getCreateMarketDraft = () => ({
+  ...emptyCreateMarketDraft,
+  ...readJson<Partial<CreateMarketDraft>>(DRAFT_KEY, emptyCreateMarketDraft),
+});
 
 export const saveCreateMarketDraft = (draft: CreateMarketDraft) => {
   window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
@@ -99,7 +135,8 @@ export const createMarketFromDraft = (draft: CreateMarketDraft): LocalMarket => 
     rules: draft.rules.trim(),
     sources: cleanSources,
     coverImageName: draft.coverImageName,
-    softCap: Number(draft.softCap) || 0,
+    coverImageDataUrl: draft.coverImageDataUrl,
+    creatorStake: Math.max(1, Number(draft.creatorStake) || 1),
     token: draft.token,
   };
 };

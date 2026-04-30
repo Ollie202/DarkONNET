@@ -24,9 +24,10 @@ export type Market = {
   trending?: boolean;
   rules?: string;
   sources?: string[];
-  softCap?: number;
+  coverImageDataUrl?: string;
+  creatorStake?: number;
   token?: string;
-  status?: "draft" | "pending" | "open";
+  status?: "draft" | "pending" | "open" | "declined";
 };
 
 export const mockMarkets: Market[] = [

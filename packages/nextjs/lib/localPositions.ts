@@ -34,3 +34,17 @@ export const saveLocalPosition = (position: LocalPosition) => {
   window.localStorage.setItem(POSITIONS_KEY, JSON.stringify(positions));
   window.dispatchEvent(new Event("local-positions-updated"));
 };
+
+export const closeLocalPosition = (positionId: string) => {
+  const positions = readPositions().map(position =>
+    position.id === positionId
+      ? {
+          ...position,
+          status: "closed" as const,
+          current: position.current.startsWith("Resolved") ? position.current : `${position.current} closed`,
+        }
+      : position,
+  );
+  window.localStorage.setItem(POSITIONS_KEY, JSON.stringify(positions));
+  window.dispatchEvent(new Event("local-positions-updated"));
+};

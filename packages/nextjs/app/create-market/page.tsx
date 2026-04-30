@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bold,
@@ -22,6 +22,7 @@ import {
   createMarketFromDraft,
   emptyCreateMarketDraft,
   getCreateMarketDraft,
+  getMarketRequestCooldown,
   saveCreateMarketDraft,
   saveLocalMarket,
 } from "~~/lib/localMarkets";
@@ -50,6 +51,13 @@ const toolbar = [
 
 const MAX_SOURCES = 10;
 
+const formatRemaining = (remainingMs: number) => {
+  const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+  const minutes = Math.ceil((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours <= 0) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
+};
+
 const FieldTooltip = ({ label }: { label: string }) => (
   <span className="group relative inline-flex">
     <Info size={14} className="cursor-help text-[#525252] dark:text-[#A1A1A1]" />
@@ -65,6 +73,11 @@ export default function CreateMarketPage() {
     typeof window === "undefined" ? emptyCreateMarketDraft : getCreateMarketDraft(),
   );
   const [formMessage, setFormMessage] = useState("");
+  const [cooldown, setCooldown] = useState(() =>
+    typeof window === "undefined" ? { canSubmit: true, remainingMs: 0 } : getMarketRequestCooldown(),
+  );
+
+  const creatorStake = useMemo(() => Number(draft.creatorStake) || 0, [draft.creatorStake]);
 
   const updateDraft = <Key extends keyof CreateMarketDraft>(key: Key, value: CreateMarketDraft[Key]) => {
     setFormMessage("");
@@ -89,12 +102,37 @@ export default function CreateMarketPage() {
     );
   };
 
+  const handleImageUpload = (file?: File) => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormMessage("");
+      setDraft(currentDraft => ({
+        ...currentDraft,
+        coverImageName: file.name,
+        coverImageDataUrl: typeof reader.result === "string" ? reader.result : "",
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const saveDraft = () => {
     saveCreateMarketDraft(draft);
     setFormMessage("Draft saved locally.");
   };
 
   const submitMarket = () => {
+    const nextCooldown = getMarketRequestCooldown();
+    setCooldown(nextCooldown);
+
+    if (!nextCooldown.canSubmit) {
+      setFormMessage(
+        `You can submit one market request every 24 hours. Try again in ${formatRemaining(nextCooldown.remainingMs)}.`,
+      );
+      return;
+    }
+
     if (
       !draft.question.trim() ||
       !draft.category ||
@@ -106,8 +144,14 @@ export default function CreateMarketPage() {
       return;
     }
 
+    if (creatorStake < 1) {
+      setFormMessage("Add at least $1 from your wallet to submit a market creation request.");
+      return;
+    }
+
     const market = createMarketFromDraft(draft);
     saveLocalMarket(market);
+    setCooldown(getMarketRequestCooldown());
     clearCreateMarketDraft();
     setDraft(emptyCreateMarketDraft);
     router.push(`/markets/${market.id}`);
@@ -119,11 +163,12 @@ export default function CreateMarketPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Create New Market</h1>
           <p className="mt-2 max-w-2xl text-sm text-[#525252] dark:text-[#A1A1A1]">
-            Draft a market with clear rules, credible sources, and resolution timing before it goes live.
+            Draft a market with clear rules, credible sources, resolution timing, and a $1 minimum wallet-backed
+            request.
           </p>
         </header>
 
-        <form className="rounded-lg border border-[#E5E5E5] bg-white p-6 shadow-[0_18px_50px_-36px_rgba(10,10,10,0.45)] dark:border-[#1F1F1F] dark:bg-[#141414]">
+        <form className="rounded-lg border border-[#E5E5E5] bg-white p-4 shadow-[0_18px_50px_-36px_rgba(10,10,10,0.45)] dark:border-[#1F1F1F] dark:bg-[#141414] sm:p-6">
           <div className="space-y-5">
             <label className="block">
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
@@ -158,21 +203,37 @@ export default function CreateMarketPage() {
 
             <div>
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Cover Image</span>
-              <label className="smooth-action mt-2 flex h-11 w-fit cursor-pointer items-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-semibold text-[#0A0A0A] hover:border-[#FFD60A]/70 dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]">
-                <ImageIcon size={17} />
-                Upload
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={event => updateDraft("coverImageName", event.target.files?.[0]?.name ?? "")}
-                />
-              </label>
-              {draft.coverImageName && (
-                <div className="mt-2 text-xs font-medium text-[#525252] dark:text-[#A1A1A1]">
-                  {draft.coverImageName}
+              <div className="mt-2 grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+                <label className="smooth-action flex h-40 cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-md border border-dashed border-[#CBD5E1] bg-white text-sm font-semibold text-[#0A0A0A] hover:border-[#FFD60A]/70 dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]">
+                  {draft.coverImageDataUrl ? (
+                    <span
+                      aria-hidden="true"
+                      className="h-full w-full bg-cover bg-center"
+                      style={{ backgroundImage: `url(${draft.coverImageDataUrl})` }}
+                    />
+                  ) : (
+                    <>
+                      <ImageIcon size={22} />
+                      Upload Image
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={event => handleImageUpload(event.target.files?.[0])}
+                  />
+                </label>
+                <div className="flex min-w-0 flex-col justify-center rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 text-sm leading-6 text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
+                  <div className="font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                    {draft.coverImageName || "No image selected"}
+                  </div>
+                  <p className="mt-2">
+                    Tap upload on mobile or desktop to choose a cover image. The preview will appear here before you
+                    submit the request.
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
 
             <div>
@@ -277,23 +338,28 @@ export default function CreateMarketPage() {
             </div>
 
             <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 text-sm leading-6 text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
-              At the presale end date, the market can launch pending approval if the soft cap is met. If not, funds are
-              refunded. The resolution date should be at least 24 hours after presale ends.
+              Market creation requests require a minimum $1 wallet-backed stake. The request stays pending until an
+              admin approves it, and users can only submit one request every 24 hours.
             </div>
 
             <div className="grid gap-5 md:grid-cols-3">
               <label className="block">
                 <span className="flex items-center gap-2 text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                  Soft Cap
-                  <FieldTooltip label="Minimum funding required before the market can launch. If the cap is not met, presale funds are refunded." />
+                  Creator Stake
+                  <FieldTooltip label="Minimum amount the market creator must put from their wallet before submitting the request. Backend should collect this through the wallet flow." />
                 </span>
                 <input
                   type="number"
-                  value={draft.softCap}
-                  onChange={event => updateDraft("softCap", event.target.value)}
-                  placeholder="1000"
+                  min="1"
+                  step="1"
+                  value={draft.creatorStake}
+                  onChange={event => updateDraft("creatorStake", event.target.value)}
+                  placeholder="1"
                   className="mt-2 h-11 w-full rounded-md border border-[#CBD5E1] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
                 />
+                {creatorStake < 1 && (
+                  <span className="mt-2 block text-xs font-semibold text-[#DC2626]">Minimum is $1.</span>
+                )}
               </label>
               <div className="block">
                 <span className="flex items-center gap-2 text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
@@ -333,9 +399,12 @@ export default function CreateMarketPage() {
               <button
                 type="button"
                 onClick={submitMarket}
+                disabled={!cooldown.canSubmit}
                 className="smooth-action h-11 cursor-pointer rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
               >
-                Submit Market
+                {cooldown.canSubmit
+                  ? "Submit And Fund Request"
+                  : `Available In ${formatRemaining(cooldown.remainingMs)}`}
               </button>
             </div>
           </div>

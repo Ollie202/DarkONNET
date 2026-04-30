@@ -10,19 +10,19 @@ export const Header = () => {
   const { toggle } = useSidebar();
 
   return (
-    <header className="sticky top-0 z-[80] flex items-center justify-between h-14 shrink-0 border-b border-[#E5E5E5] dark:border-[#1F1F1F] bg-white dark:bg-[#0A0A0A] px-3">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-[80] flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E5E5E5] bg-white px-2 dark:border-[#1F1F1F] dark:bg-[#0A0A0A] sm:px-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={toggle}
           aria-label="toggle sidebar"
-          className="smooth-action inline-flex items-center justify-center h-9 w-9 rounded-md text-[#0A0A0A] dark:text-[#FAFAFA] hover:bg-[#F4F4F5] dark:hover:bg-[#141414] hover:text-[#0A0A0A] dark:hover:text-[#FFD60A]"
+          className="smooth-action hidden h-9 w-9 items-center justify-center rounded-md text-[#0A0A0A] hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:text-[#FAFAFA] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A] md:inline-flex"
         >
           <Menu size={18} />
         </button>
-        <span className="text-sm text-[#525252] dark:text-[#A1A1A1]">Prediction Market</span>
+        <span className="truncate text-sm text-[#525252] dark:text-[#A1A1A1]">Prediction Market</span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-1 sm:gap-2">
         <ThemeToggle />
         <NotificationsMenu />
         <a
