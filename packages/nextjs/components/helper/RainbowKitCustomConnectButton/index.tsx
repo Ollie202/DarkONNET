@@ -60,6 +60,7 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
   const { profileName, needsUsername, loadWalletProfile, saveUsernameForWallet } = useProfile();
   const [usernameDraft, setUsernameDraft] = useState("");
   const [copiedAddress, setCopiedAddress] = useState(false);
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   const dropdownRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
@@ -165,14 +166,39 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
               <div className="mt-2 break-all font-mono">{account.address}</div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => disconnect()}
-              className="smooth-action flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-[#DC2626]/30 text-sm font-semibold text-[#DC2626] hover:bg-[#DC2626]/10 dark:text-[#EF4444]"
-            >
-              <LogOut size={15} />
-              Disconnect
-            </button>
+            {confirmingDisconnect ? (
+              <div className="rounded-md border border-[#DC2626]/30 bg-[#DC2626]/5 p-3">
+                <p className="text-sm font-semibold text-[#DC2626] dark:text-[#EF4444]">
+                  Are you sure you want to disconnect?
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDisconnect(false)}
+                    className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => disconnect()}
+                    className="smooth-action flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md bg-[#DC2626] text-sm font-semibold text-white hover:bg-[#DC2626]/90"
+                  >
+                    <LogOut size={15} />
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingDisconnect(true)}
+                className="smooth-action flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-[#DC2626]/30 text-sm font-semibold text-[#DC2626] hover:bg-[#DC2626]/10 dark:text-[#EF4444]"
+              >
+                <LogOut size={15} />
+                Disconnect
+              </button>
+            )}
           </div>
         </div>
       </details>
