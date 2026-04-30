@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { Droplets, Menu } from "lucide-react";
-import { useAccount } from "wagmi";
 import { ThemeToggle } from "~~/components/ThemeToggle";
 import { RainbowKitCustomConnectButton } from "~~/components/helper";
 import { NotificationsMenu } from "~~/components/notifications/NotificationsMenu";
@@ -10,7 +8,6 @@ import { useSidebar } from "~~/components/sidebar/SidebarContext";
 
 export const Header = () => {
   const { toggle } = useSidebar();
-  const { isConnected } = useAccount();
 
   return (
     <header className="sticky top-0 z-[80] flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E5E5E5] bg-white px-2 dark:border-[#1F1F1F] dark:bg-[#0A0A0A] sm:px-3">
@@ -26,15 +23,6 @@ export const Header = () => {
         <span className="truncate text-sm text-[#525252] dark:text-[#A1A1A1]">Prediction Market</span>
       </div>
       <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-        {isConnected && (
-          <Link
-            href="/admin-market-requests"
-            className="smooth-action inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-[#E5E5E5] px-3 text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
-          >
-            <span className="hidden sm:inline">Admin Demo</span>
-            <span className="sm:hidden">Admin</span>
-          </Link>
-        )}
         <ThemeToggle />
         <NotificationsMenu />
         <a
