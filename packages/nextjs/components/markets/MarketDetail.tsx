@@ -113,7 +113,7 @@ const formatCategory = (category: Market["category"]) => category[0].toUpperCase
 
 export const MarketDetail = ({ market }: MarketDetailProps) => {
   const { addNotification } = useNotifications();
-  const { profileName } = useProfile();
+  const { profileImageDataUrl, profileName } = useProfile();
   const searchParams = useSearchParams();
   const probability = useLiveProbability(market.yesProbability, market.sentimentSignals);
   const yesPct = Math.round(probability * 100);
@@ -427,9 +427,17 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
                 <div className="mt-3 rounded-lg border border-[#E5E5E5] bg-[#F8FAFC] p-3 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
                   <div className="flex gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD60A] text-sm font-bold text-[#0A0A0A]">
-                      {currentProfileName.slice(0, 2).toUpperCase()}
-                    </div>
+                    {profileImageDataUrl ? (
+                      <div
+                        aria-hidden="true"
+                        className="h-9 w-9 shrink-0 rounded-full bg-cover bg-center"
+                        style={{ backgroundImage: `url(${profileImageDataUrl})` }}
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD60A] text-sm font-bold text-[#0A0A0A]">
+                        {currentProfileName.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <textarea
                         value={commentDraft}

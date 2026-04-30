@@ -188,12 +188,12 @@ export default function PositionsPage() {
         </div>
 
         <div className="overflow-hidden rounded-lg border border-[#E5E5E5] bg-white dark:border-[#1F1F1F] dark:bg-[#141414]">
-          <div className="hidden grid-cols-[minmax(0,1.8fr)_0.6fr_0.6fr_0.6fr_0.6fr_auto_auto] gap-3 border-b border-[#E5E5E5] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1] md:grid">
+          <div className="hidden grid-cols-[minmax(18rem,1fr)_6rem_7rem_6rem_7rem_8rem_9rem] items-center gap-3 border-b border-[#E5E5E5] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1] md:grid">
             <span>Market</span>
-            <span>Side</span>
-            <span>Stake</span>
-            <span>Entry</span>
-            <span>Current</span>
+            <span className="text-center">Side</span>
+            <span className="text-right">Stake</span>
+            <span className="text-right">Entry</span>
+            <span className="text-right">Current</span>
             <span className="text-right">PNL</span>
             <span className="text-right">Action</span>
           </div>
@@ -202,7 +202,7 @@ export default function PositionsPage() {
             {visiblePositions.map(position => (
               <div
                 key={position.id}
-                className="grid gap-3 px-4 py-4 text-sm hover:bg-[#F8FAFC] dark:hover:bg-[#0A0A0A] md:grid-cols-[minmax(0,1.8fr)_0.6fr_0.6fr_0.6fr_0.6fr_auto_auto] md:items-center"
+                className="grid gap-3 px-4 py-4 text-sm hover:bg-[#F8FAFC] dark:hover:bg-[#0A0A0A] md:grid-cols-[minmax(18rem,1fr)_6rem_7rem_6rem_7rem_8rem_9rem] md:items-center"
               >
                 <span className="min-w-0">
                   <Link
@@ -216,19 +216,19 @@ export default function PositionsPage() {
                     {position.status[0].toUpperCase() + position.status.slice(1)}
                   </span>
                 </span>
-                <span className={position.side === "Yes" ? "text-[#16A34A]" : "text-[#DC2626]"}>
+                <span className={`md:text-center ${position.side === "Yes" ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
                   <span className="text-[#525252] dark:text-[#A1A1A1] md:hidden">Side: </span>
                   {position.side}
                 </span>
-                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">
+                <span className="font-mono text-[#525252] dark:text-[#A1A1A1] md:text-right">
                   <span className="md:hidden">Stake: </span>
                   {position.stake}
                 </span>
-                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">
+                <span className="font-mono text-[#525252] dark:text-[#A1A1A1] md:text-right">
                   <span className="md:hidden">Entry: </span>
                   {position.entry}
                 </span>
-                <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">
+                <span className="font-mono text-[#525252] dark:text-[#A1A1A1] md:text-right">
                   <span className="md:hidden">Current: </span>
                   {position.current}
                 </span>
@@ -245,7 +245,7 @@ export default function PositionsPage() {
                   <button
                     type="button"
                     onClick={() => closePosition(position.id)}
-                    className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] px-3 text-xs font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                    className="smooth-action h-9 w-full cursor-pointer rounded-md border border-[#E5E5E5] px-3 text-xs font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                   >
                     Close Trade
                   </button>

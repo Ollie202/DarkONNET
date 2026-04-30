@@ -6,6 +6,7 @@ type ProfileContextValue = {
   profileName: string;
   bio: string;
   email: string;
+  profileImageDataUrl: string;
   receiveUpdates: boolean;
   receivePositionNotifications: boolean;
   walletAddress: string;
@@ -21,6 +22,7 @@ export type ProfileSettings = {
   profileName: string;
   bio: string;
   email: string;
+  profileImageDataUrl: string;
   receiveUpdates: boolean;
   receivePositionNotifications: boolean;
 };
@@ -33,6 +35,7 @@ const defaultProfile: ProfileSettings = {
   profileName: "",
   bio: "",
   email: "",
+  profileImageDataUrl: "",
   receiveUpdates: true,
   receivePositionNotifications: true,
 };
@@ -41,6 +44,7 @@ const cleanProfile = (profile: ProfileSettings): ProfileSettings => ({
   profileName: profile.profileName.trim(),
   bio: profile.bio.trim(),
   email: profile.email.trim(),
+  profileImageDataUrl: profile.profileImageDataUrl,
   receiveUpdates: profile.receiveUpdates,
   receivePositionNotifications: profile.receivePositionNotifications,
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Check, Mail, UserRound } from "lucide-react";
+import { Bell, Check, ImageIcon, Mail, UserRound } from "lucide-react";
 import { type ProfileSettings, useProfile } from "~~/components/profile/ProfileContext";
 
 const profileSnapshot = (profile: ProfileSettings) => JSON.stringify(profile);
@@ -12,6 +12,7 @@ export default function ProfilePage() {
     profileName: profile.profileName,
     bio: profile.bio,
     email: profile.email,
+    profileImageDataUrl: profile.profileImageDataUrl,
     receiveUpdates: profile.receiveUpdates,
     receivePositionNotifications: profile.receivePositionNotifications,
   });
@@ -23,12 +24,20 @@ export default function ProfilePage() {
       profileName: profile.profileName,
       bio: profile.bio,
       email: profile.email,
+      profileImageDataUrl: profile.profileImageDataUrl,
       receiveUpdates: profile.receiveUpdates,
       receivePositionNotifications: profile.receivePositionNotifications,
     };
     setDraft(nextDraft);
     setSavedSnapshot(profileSnapshot(nextDraft));
-  }, [profile.bio, profile.email, profile.profileName, profile.receivePositionNotifications, profile.receiveUpdates]);
+  }, [
+    profile.bio,
+    profile.email,
+    profile.profileImageDataUrl,
+    profile.profileName,
+    profile.receivePositionNotifications,
+    profile.receiveUpdates,
+  ]);
 
   const isDirty = useMemo(() => profileSnapshot(draft) !== savedSnapshot, [draft, savedSnapshot]);
   const displayName = profile.profileName || "Choose username";
@@ -36,6 +45,16 @@ export default function ProfilePage() {
   const updateDraft = <Key extends keyof ProfileSettings>(key: Key, value: ProfileSettings[Key]) => {
     setHasConfirmed(false);
     setDraft(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleProfileImageUpload = (file?: File) => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateDraft("profileImageDataUrl", typeof reader.result === "string" ? reader.result : "");
+    };
+    reader.readAsDataURL(file);
   };
 
   const save = () => {
@@ -89,6 +108,33 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-5">
+              <div>
+                <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Profile Picture</span>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <label className="smooth-action flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-[#CBD5E1] bg-[#F8FAFC] text-[#525252] hover:border-[#FFD60A]/70 dark:border-[#334155] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
+                    {draft.profileImageDataUrl ? (
+                      <span
+                        aria-hidden="true"
+                        className="h-full w-full bg-cover bg-center"
+                        style={{ backgroundImage: `url(${draft.profileImageDataUrl})` }}
+                      />
+                    ) : (
+                      <ImageIcon size={22} />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={event => handleProfileImageUpload(event.target.files?.[0])}
+                    />
+                  </label>
+                  <div className="text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
+                    Upload a profile picture from your phone or PC. It will show in comments and your wallet profile
+                    menu after saving.
+                  </div>
+                </div>
+              </div>
+
               <label className="block">
                 <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Profile Name</span>
                 <input

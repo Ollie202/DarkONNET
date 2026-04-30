@@ -14,6 +14,27 @@ import { useTargetNetwork } from "~~/hooks/helper/useTargetNetwork";
 
 const shortAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
 
+const ProfileAvatar = ({
+  address,
+  ensImage,
+  imageDataUrl,
+  size,
+}: {
+  address: string;
+  ensImage?: string;
+  imageDataUrl?: string;
+  size: number;
+}) =>
+  imageDataUrl ? (
+    <span
+      aria-hidden="true"
+      className="shrink-0 overflow-hidden rounded-full bg-cover bg-center"
+      style={{ width: size, height: size, backgroundImage: `url(${imageDataUrl})` }}
+    />
+  ) : (
+    <BlockieAvatar address={address} size={size} ensImage={ensImage} />
+  );
+
 type ConnectedMenuProps = {
   account: {
     address: string;
@@ -57,7 +78,7 @@ export const RainbowKitCustomConnectButton = () => {
 
 const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
   const { disconnect } = useDisconnect();
-  const { profileName, needsUsername, loadWalletProfile, saveUsernameForWallet } = useProfile();
+  const { profileImageDataUrl, profileName, needsUsername, loadWalletProfile, saveUsernameForWallet } = useProfile();
   const [usernameDraft, setUsernameDraft] = useState("");
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
@@ -81,7 +102,12 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-lg border border-[#1F1F1F] bg-[#141414] p-5 shadow-[0_24px_80px_-40px_rgba(255,214,10,0.55)]">
             <div className="flex items-center gap-3">
-              <BlockieAvatar address={account.address} size={36} ensImage={account.ensAvatar ?? undefined} />
+              <ProfileAvatar
+                address={account.address}
+                size={36}
+                ensImage={account.ensAvatar ?? undefined}
+                imageDataUrl={profileImageDataUrl}
+              />
               <div>
                 <h2 className="text-lg font-semibold text-[#FAFAFA]">Choose Username</h2>
                 <p className="mt-1 text-xs text-[#A1A1A1]">{shortAddress(account.address)} is new here.</p>
@@ -112,7 +138,12 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
 
       <details ref={dropdownRef} className="dropdown dropdown-end relative z-[100]">
         <summary className="smooth-action flex h-9 max-w-[13rem] cursor-pointer list-none items-center gap-2 rounded-md border border-[#E5E5E5] bg-[#F4F4F5] px-2 text-sm font-semibold text-[#0A0A0A] shadow-sm hover:border-[#FFD60A]/60 dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]">
-          <BlockieAvatar address={account.address} size={24} ensImage={account.ensAvatar ?? undefined} />
+          <ProfileAvatar
+            address={account.address}
+            size={24}
+            ensImage={account.ensAvatar ?? undefined}
+            imageDataUrl={profileImageDataUrl}
+          />
           <span className="hidden max-w-32 truncate sm:block">{displayName}</span>
           <ChevronDown size={15} className="text-[#525252] dark:text-[#A1A1A1]" />
         </summary>
@@ -120,7 +151,12 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
         <div className="dropdown-content z-[100] mt-2 w-[20rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg border border-[#E5E5E5] bg-white shadow-[0_18px_50px_-28px_rgba(10,10,10,0.5)] dark:border-[#1F1F1F] dark:bg-[#141414]">
           <div className="border-b border-[#E5E5E5] p-4 dark:border-[#1F1F1F]">
             <div className="flex items-center gap-3">
-              <BlockieAvatar address={account.address} size={38} ensImage={account.ensAvatar ?? undefined} />
+              <ProfileAvatar
+                address={account.address}
+                size={38}
+                ensImage={account.ensAvatar ?? undefined}
+                imageDataUrl={profileImageDataUrl}
+              />
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">{displayName}</div>
                 <div className="mt-1 font-mono text-xs text-[#525252] dark:text-[#A1A1A1]">
