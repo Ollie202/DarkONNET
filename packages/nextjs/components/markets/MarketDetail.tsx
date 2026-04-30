@@ -139,6 +139,9 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const hasInsufficientBalance = tokenAmount > selectedTokenInfo.balance;
   const currentProfileName = profileName || "New user";
   const isMarketTradable = !market.status || market.status === "open";
+  const cameFromAdmin = searchParams.get("from") === "admin";
+  const backHref = cameFromAdmin ? "/admin-market-requests" : "/";
+  const backLabel = cameFromAdmin ? "Back To Pending Requests" : "Back To Markets";
 
   useEffect(() => {
     const side = searchParams.get("side");
@@ -282,11 +285,11 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       <div className="mx-auto grid max-w-7xl gap-6 lg:h-full lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 lg:overflow-y-auto lg:pr-2">
           <Link
-            href="/"
+            href={backHref}
             className="smooth-action mb-4 inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-[#525252] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
           >
             <ArrowLeft size={16} />
-            Back To Markets
+            {backLabel}
           </Link>
 
           <div className="overflow-hidden rounded-lg border border-[#E5E5E5] bg-white dark:border-[#1F1F1F] dark:bg-[#141414]">
