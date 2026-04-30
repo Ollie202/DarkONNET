@@ -27,7 +27,7 @@ export const Header = () => {
           aria-label="Go to DarkONNET home"
           className="smooth-action flex h-9 min-w-0 items-center gap-2 rounded-md px-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[#141414]"
         >
-          <Image src="/darkonnet-hornet.svg" alt="" width={28} height={28} className="shrink-0 rounded-md" />
+          <Image src="/darkonnet-hornet.jpg" alt="" width={28} height={28} className="shrink-0 rounded-md" />
           <span className="hidden truncate text-sm font-semibold tracking-tight text-[#0A0A0A] dark:text-[#FAFAFA] sm:inline">
             Dark<span className="text-[#A37500] dark:text-[#FFD60A]">ONNET</span>
           </span>

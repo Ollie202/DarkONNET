@@ -36,16 +36,9 @@ export const Sidebar = () => {
           <Link
             href="/"
             aria-label="Go to DarkONNET home"
-            className={`smooth-action flex min-w-0 items-center rounded-md hover:bg-[#F4F4F5] dark:hover:bg-[#141414] ${
-              isCollapsed ? "mx-auto h-10 w-10 justify-center" : "h-10 w-full gap-2 px-2"
-            }`}
+            className="smooth-action mx-auto flex h-10 w-10 min-w-0 items-center justify-center rounded-md hover:bg-[#F4F4F5] dark:hover:bg-[#141414]"
           >
-            <Image src="/darkonnet-hornet.svg" alt="" width={32} height={32} className="shrink-0 rounded-md" />
-            {!isCollapsed && (
-              <span className="truncate text-sm font-semibold tracking-tight text-[#0A0A0A] dark:text-[#FAFAFA]">
-                Dark<span className="text-[#A37500] dark:text-[#FFD60A]">ONNET</span>
-              </span>
-            )}
+            <Image src="/darkonnet-hornet.jpg" alt="" width={32} height={32} className="shrink-0 rounded-md" />
           </Link>
         </div>
 
