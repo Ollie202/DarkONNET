@@ -53,7 +53,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
   }, [creatorTab, filter, isConnected, isCreatorMarketView, markets]);
 
   return (
-    <section className="px-6 py-6">
+    <section className="px-4 py-5 sm:px-6 sm:py-6">
       <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
@@ -100,14 +100,14 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
       <CategoryTabs active={filter} onChange={setFilter} />
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-6">
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 md:grid-cols-2 lg:grid-cols-3">
         {visible.map(market => (
           <MarketCard key={market.id} market={market} />
         ))}
       </div>
 
       {visible.length === 0 && (
-        <div className="text-center py-16 text-sm text-[#525252] dark:text-[#A1A1A1]">
+        <div className="py-12 text-center text-sm text-[#525252] dark:text-[#A1A1A1] sm:py-16">
           {creatorTab === "mine" && !isConnected ? (
             <div className="mx-auto max-w-md rounded-lg border border-[#E5E5E5] bg-white p-5 dark:border-[#1F1F1F] dark:bg-[#141414]">
               <div className="font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Connect wallet to view My Markets</div>

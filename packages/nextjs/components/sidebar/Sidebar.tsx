@@ -90,7 +90,7 @@ export const Sidebar = () => {
                 }`}
               >
                 <Icon size={17} />
-                <span>{item.label}</span>
+                <span>{item.href === "/creator-markets" ? "Creators" : item.label}</span>
               </Link>
             );
           })}

@@ -31,7 +31,7 @@ type CategoryTabsProps = {
 
 export const CategoryTabs = ({ active, onChange }: CategoryTabsProps) => {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-[#E5E5E5] dark:border-[#1F1F1F] -mx-6 px-6 py-2">
+    <div className="-mx-4 flex items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-[#E5E5E5] px-4 py-2 [scrollbar-width:none] dark:border-[#1F1F1F] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
       {tabs.map((tab, i) => {
         const Icon = tab.icon;
         const isActive = active === tab.id;

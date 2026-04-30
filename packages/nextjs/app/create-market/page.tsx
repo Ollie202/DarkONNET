@@ -177,7 +177,7 @@ export default function CreateMarketPage() {
   };
 
   return (
-    <section className="px-6 py-6">
+    <section className="px-4 py-5 sm:px-6 sm:py-6">
       {submittedMarketId && (
         <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-lg border border-[#1F1F1F] bg-[#141414] p-5 shadow-[0_24px_80px_-40px_rgba(255,214,10,0.55)]">

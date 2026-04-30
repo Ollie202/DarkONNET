@@ -57,11 +57,12 @@ export const RainbowKitCustomConnectButton = () => {
         if (!connected) {
           return (
             <button
-              className="smooth-action h-9 cursor-pointer rounded-md border-none bg-[#FFD208] px-3 text-sm font-semibold text-gray-900"
+              className="smooth-action h-9 cursor-pointer rounded-md border-none bg-[#FFD208] px-2.5 text-sm font-semibold text-gray-900 sm:px-3"
               onClick={openConnectModal}
               type="button"
             >
-              Connect Wallet
+              <span className="sm:hidden">Connect</span>
+              <span className="hidden sm:inline">Connect Wallet</span>
             </button>
           );
         }
@@ -138,7 +139,7 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
       )}
 
       <details ref={dropdownRef} className="dropdown dropdown-end relative z-[100]">
-        <summary className="smooth-action flex h-9 max-w-[13rem] cursor-pointer list-none items-center gap-2 rounded-md border border-[#E5E5E5] bg-[#F4F4F5] px-2 text-sm font-semibold text-[#0A0A0A] shadow-sm hover:border-[#FFD60A]/60 dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]">
+        <summary className="smooth-action flex h-9 max-w-[5rem] cursor-pointer list-none items-center gap-2 rounded-md border border-[#E5E5E5] bg-[#F4F4F5] px-2 text-sm font-semibold text-[#0A0A0A] shadow-sm hover:border-[#FFD60A]/60 dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA] sm:max-w-[13rem]">
           <ProfileAvatar
             address={account.address}
             size={24}

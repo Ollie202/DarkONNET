@@ -142,7 +142,7 @@ export default function PositionsPage() {
 
   if (!isConnected) {
     return (
-      <section className="px-6 py-6">
+      <section className="px-4 py-5 sm:px-6 sm:py-6">
         <div className="mx-auto flex min-h-[calc(100vh-10rem)] max-w-3xl items-center justify-center">
           <div className="w-full rounded-lg border border-[#E5E5E5] bg-white p-6 text-center dark:border-[#1F1F1F] dark:bg-[#141414]">
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#FFD60A] text-[#0A0A0A]">
@@ -166,7 +166,7 @@ export default function PositionsPage() {
   }
 
   return (
-    <section className="px-6 py-6">
+    <section className="px-4 py-5 sm:px-6 sm:py-6">
       <div className="mx-auto max-w-6xl">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -175,7 +175,7 @@ export default function PositionsPage() {
               Track your private market exposure, settled results, and per-position PNL.
             </p>
           </div>
-          <div className="rounded-lg border border-[#E5E5E5] bg-white px-4 py-3 dark:border-[#1F1F1F] dark:bg-[#141414]">
+          <div className="rounded-lg border border-[#E5E5E5] bg-white px-4 py-3 dark:border-[#1F1F1F] dark:bg-[#141414] md:text-right">
             <div className="flex items-center gap-2 text-xs text-[#525252] dark:text-[#A1A1A1]">
               <LockKeyhole size={14} />
               Tab PNL
@@ -270,7 +270,7 @@ export default function PositionsPage() {
                   <button
                     type="button"
                     onClick={() => closePosition(position.id)}
-                    className="smooth-action h-9 w-full cursor-pointer rounded-md border border-[#E5E5E5] px-3 text-xs font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                    className="smooth-action h-9 w-full cursor-pointer rounded-md border border-[#E5E5E5] px-3 text-xs font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A] md:w-auto"
                   >
                     Close Trade
                   </button>

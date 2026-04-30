@@ -84,7 +84,7 @@ export default function ProfilePage() {
 
   if (!isConnected) {
     return (
-      <section className="px-6 py-6">
+      <section className="px-4 py-5 sm:px-6 sm:py-6">
         <div className="mx-auto max-w-6xl">
           <header className="mb-6">
             <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Profile</h1>
@@ -149,7 +149,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <section className="px-6 py-6">
+    <section className="px-4 py-5 sm:px-6 sm:py-6">
       <div className="mx-auto max-w-6xl">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>

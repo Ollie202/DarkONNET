@@ -288,7 +288,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   };
 
   return (
-    <section className="px-6 py-6 lg:h-[calc(100vh-3.5rem)] lg:overflow-hidden">
+    <section className="px-4 py-5 sm:px-6 sm:py-6 lg:h-[calc(100vh-3.5rem)] lg:overflow-hidden">
       <div className="mx-auto grid max-w-7xl gap-6 lg:h-full lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 lg:overflow-y-auto lg:pr-2">
           <Link
@@ -646,7 +646,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
         </div>
 
         <aside className="lg:h-full lg:overflow-y-auto lg:pr-1">
-          <div className="rounded-lg border border-[#E5E5E5] bg-white p-4 shadow-[0_18px_50px_-36px_rgba(10,10,10,0.55)] dark:border-[#1F1F1F] dark:bg-[#141414]">
+          <div className="rounded-lg border border-[#E5E5E5] bg-white p-4 shadow-[0_18px_50px_-36px_rgba(10,10,10,0.55)] dark:border-[#1F1F1F] dark:bg-[#141414] lg:sticky lg:top-4">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Place Bet</h2>

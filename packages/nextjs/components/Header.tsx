@@ -35,7 +35,9 @@ export const Header = () => {
             Dark<span className="text-[#A37500] dark:text-[#FFD60A]">ONNET</span>
           </span>
         </Link>
-        <span className="truncate text-sm text-[#525252] dark:text-[#A1A1A1]">Private Prediction Market</span>
+        <span className="hidden truncate text-sm text-[#525252] dark:text-[#A1A1A1] lg:inline">
+          Private Prediction Market
+        </span>
       </div>
       <div className="flex min-w-0 items-center gap-1 sm:gap-2">
         {isConnected && (
@@ -49,7 +51,7 @@ export const Header = () => {
           href="https://sepoliafaucet.com/"
           target="_blank"
           rel="noreferrer"
-          className="smooth-action inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-[#E5E5E5] px-3 text-sm font-medium text-[#525252] hover:border-[#FFD60A]/60 hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+          className="smooth-action inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-[#E5E5E5] px-2.5 text-sm font-medium text-[#525252] hover:border-[#FFD60A]/60 hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A] sm:px-3"
         >
           <Droplets size={16} />
           <span className="hidden sm:inline">Faucet</span>
