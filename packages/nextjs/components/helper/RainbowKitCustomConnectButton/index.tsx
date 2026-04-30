@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WrongNetworkDropdown } from "./WrongNetworkDropdown";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { ChevronDown, LogOut, Save, UserRound, Wallet } from "lucide-react";
+import { Check, ChevronDown, Clipboard, ClipboardCheck, LogOut, UserRound, Wallet } from "lucide-react";
 import { getAddress } from "viem";
 import { useDisconnect } from "wagmi";
 import { BlockieAvatar } from "~~/components/helper";
@@ -22,6 +22,7 @@ export const RainbowKitCustomConnectButton = () => {
   const { profileName, setProfileName, clearProfileName } = useProfile();
   const { disconnect } = useDisconnect();
   const [draftName, setDraftName] = useState(profileName);
+  const [copiedAddress, setCopiedAddress] = useState(false);
   const dropdownRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
@@ -93,9 +94,24 @@ export const RainbowKitCustomConnectButton = () => {
                 </label>
 
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-3 text-xs text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
-                  <div className="flex items-center gap-2">
-                    <Wallet size={14} />
-                    {chain.name}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                      <Wallet size={14} />
+                      {chain.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(checkSumAddress);
+                        setCopiedAddress(true);
+                        window.setTimeout(() => setCopiedAddress(false), 1200);
+                      }}
+                      className="smooth-action inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#525252] hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+                      aria-label="copy wallet address"
+                      title="Copy Address"
+                    >
+                      {copiedAddress ? <ClipboardCheck size={14} /> : <Clipboard size={14} />}
+                    </button>
                   </div>
                   <div className="mt-2 break-all font-mono">{checkSumAddress}</div>
                 </div>
@@ -106,7 +122,7 @@ export const RainbowKitCustomConnectButton = () => {
                     onClick={() => setProfileName(draftName)}
                     className="smooth-action flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
                   >
-                    <Save size={15} />
+                    <Check size={15} />
                     Save
                   </button>
                   <button

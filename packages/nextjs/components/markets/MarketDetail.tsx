@@ -251,6 +251,13 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     );
   };
 
+  const addPresetAmount = (preset: number) => {
+    setAmount(currentAmount => {
+      const nextAmount = (Number(currentAmount) || 0) + preset;
+      return Number.isInteger(nextAmount) ? String(nextAmount) : nextAmount.toFixed(4);
+    });
+  };
+
   return (
     <section className="px-6 py-6 lg:h-[calc(100vh-3.5rem)] lg:overflow-hidden">
       <div className="mx-auto grid max-w-7xl gap-6 lg:h-full lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -636,7 +643,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                   <button
                     key={preset}
                     type="button"
-                    onClick={() => setAmount(String(preset))}
+                    onClick={() => addPresetAmount(preset)}
                     className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                   >
                     {amountMode === "usd" ? `$${preset}` : `${preset} ${selectedTokenInfo.symbol}`}

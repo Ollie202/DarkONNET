@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, LayoutGrid, Plus, Trophy, User } from "lucide-react";
+import { BarChart3, LayoutGrid, Plus, User } from "lucide-react";
 import { useSidebar } from "~~/components/sidebar/SidebarContext";
 
 type NavItem = {
@@ -14,7 +14,6 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: "Markets", href: "/", icon: LayoutGrid },
   { label: "My Positions", href: "/positions", icon: BarChart3 },
-  { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
   { label: "Profile", href: "/profile", icon: User },
 ];
 
