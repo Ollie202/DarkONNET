@@ -40,7 +40,6 @@ export default function ProfilePage() {
   ]);
 
   const isDirty = useMemo(() => profileSnapshot(draft) !== savedSnapshot, [draft, savedSnapshot]);
-  const displayName = profile.profileName || "Choose username";
 
   const updateDraft = <Key extends keyof ProfileSettings>(key: Key, value: ProfileSettings[Key]) => {
     setHasConfirmed(false);
@@ -89,10 +88,6 @@ export default function ProfilePage() {
               Manage your private market identity and notification preferences.
             </p>
           </div>
-          <div className="rounded-lg border border-[#E5E5E5] bg-white px-4 py-3 dark:border-[#1F1F1F] dark:bg-[#141414]">
-            <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Signed In As</div>
-            <div className="mt-1 font-mono text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">{displayName}</div>
-          </div>
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -103,7 +98,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Personal Info</h2>
-                <p className="text-xs text-[#525252] dark:text-[#A1A1A1]">Used across comments and market activity.</p>
+                <p className="text-xs text-[#525252] dark:text-[#A1A1A1]">Username is only used in comments.</p>
               </div>
             </div>
 
@@ -138,16 +133,6 @@ export default function ProfilePage() {
                   onChange={event => updateDraft("profileName", event.target.value)}
                   placeholder="Choose a username"
                   className="mt-2 h-11 w-full rounded-md border border-[#E5E5E5] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Bio</span>
-                <textarea
-                  value={draft.bio}
-                  onChange={event => updateDraft("bio", event.target.value)}
-                  placeholder="Tell other market participants what you focus on..."
-                  className="mt-2 min-h-28 w-full resize-y rounded-md border border-[#E5E5E5] bg-white px-4 py-3 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
                 />
               </label>
 
