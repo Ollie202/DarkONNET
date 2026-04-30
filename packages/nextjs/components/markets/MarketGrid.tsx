@@ -85,10 +85,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
             <button
               key={tab.id}
               type="button"
-              onClick={() => {
-                setCreatorTab(tab.id);
-                if (tab.id === "mine" && !isConnected) openConnectModal?.();
-              }}
+              onClick={() => setCreatorTab(tab.id)}
               className={`smooth-action h-10 rounded-md px-4 text-sm font-semibold ${
                 creatorTab === tab.id
                   ? "bg-[#FFD60A] text-[#0A0A0A]"
