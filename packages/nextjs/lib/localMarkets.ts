@@ -72,7 +72,10 @@ export const getLocalMarkets = () =>
     sources: market.sources ?? [],
   }));
 
-export const getAllMarkets = () => [...getLocalMarkets().filter(market => market.status === "open"), ...mockMarkets];
+export const getAllMarkets = () => mockMarkets;
+
+export const getCreatorMarkets = () =>
+  getLocalMarkets().filter(market => market.status === "open" || market.status === "pending");
 
 export const getLocalMarketById = (id: string) => getLocalMarkets().find(market => market.id === id);
 
@@ -86,6 +89,33 @@ export const updateLocalMarketStatus = (marketId: string, status: LocalMarket["s
   const nextMarkets = getLocalMarkets().map(market =>
     market.id === marketId ? { ...market, status, adminNote, updatedAt: new Date().toISOString() } : market,
   );
+  window.localStorage.setItem(MARKETS_KEY, JSON.stringify(nextMarkets));
+  window.dispatchEvent(new Event("local-markets-updated"));
+};
+
+export const recordLocalMarketTrade = (marketId: string, side: "yes" | "no", usdAmount: number) => {
+  const nextMarkets = getLocalMarkets().map(market => {
+    if (market.id !== marketId) return market;
+
+    const tradeWeight = Math.min(0.08, Math.max(0.01, usdAmount / 1000));
+    const direction = side === "yes" ? 1 : -1;
+    const nextProbability = Math.min(0.96, Math.max(0.04, market.yesProbability + direction * tradeWeight));
+    const currentVolume = Number(market.encryptedVolumeLabel.replace(/[^0-9.]/g, "")) || 0;
+
+    return {
+      ...market,
+      yesProbability: nextProbability,
+      encryptedVolumeLabel: `$${Math.round(currentVolume + usdAmount).toLocaleString()}`,
+      signalLabel: side === "yes" ? "Latest trade leaned Yes" : "Latest trade leaned No",
+      sentimentSignals: {
+        news: market.sentimentSignals.news,
+        volume: Math.round(nextProbability * 100),
+        crowd: Math.round(nextProbability * 100),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
   window.localStorage.setItem(MARKETS_KEY, JSON.stringify(nextMarkets));
   window.dispatchEvent(new Event("local-markets-updated"));
 };

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, LayoutGrid, Plus, User } from "lucide-react";
+import { BarChart3, LayoutGrid, Plus, Store, User } from "lucide-react";
 import { useSidebar } from "~~/components/sidebar/SidebarContext";
 
 type NavItem = {
@@ -13,6 +13,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: "Markets", href: "/", icon: LayoutGrid },
+  { label: "Creator Markets", href: "/creator-markets", icon: Store },
   { label: "My Positions", href: "/positions", icon: BarChart3 },
   { label: "Profile", href: "/profile", icon: User },
 ];
@@ -82,7 +83,7 @@ export const Sidebar = () => {
         className="fixed inset-x-0 bottom-0 z-[90] border-t border-[#E5E5E5] bg-white px-2 py-2 dark:border-[#1F1F1F] dark:bg-[#0A0A0A] md:hidden"
         aria-label="mobile navigation"
       >
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {[...navItems, { label: "Create", href: "/create-market", icon: Plus }].map(item => {
             const Icon = item.icon;
             const active = pathname === item.href;

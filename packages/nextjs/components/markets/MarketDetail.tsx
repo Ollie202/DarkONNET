@@ -8,6 +8,7 @@ import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
 import { useNotifications } from "~~/components/notifications/NotificationsContext";
 import { useProfile } from "~~/components/profile/ProfileContext";
+import { recordLocalMarketTrade } from "~~/lib/localMarkets";
 import { saveLocalPosition } from "~~/lib/localPositions";
 import { type Market, formatTimeRemaining } from "~~/lib/mockMarkets";
 
@@ -136,6 +137,8 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const parsedAmount = Number(amount);
   const tokenAmount = amountMode === "token" ? parsedAmount || 0 : (parsedAmount || 0) / selectedTokenInfo.usdPrice;
   const usdAmount = amountMode === "usd" ? parsedAmount || 0 : (parsedAmount || 0) * selectedTokenInfo.usdPrice;
+  const creatorFee = market.status ? usdAmount * 0.01 : 0;
+  const netUsdAmount = Math.max(0, usdAmount - creatorFee);
   const hasInsufficientBalance = tokenAmount > selectedTokenInfo.balance;
   const currentProfileName = profileName || "New user";
   const isMarketTradable = !market.status || market.status === "open";
@@ -149,10 +152,10 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   }, [searchParams]);
 
   const estimatedShares = useMemo(() => {
-    if (!usdAmount || !selectedSide || hasInsufficientBalance) return "0.00";
+    if (!netUsdAmount || !selectedSide || hasInsufficientBalance) return "0.00";
     const price = selectedSide === "yes" ? probability : 1 - probability;
-    return (usdAmount / Math.max(price, 0.01)).toFixed(2);
-  }, [hasInsufficientBalance, probability, selectedSide, usdAmount]);
+    return (netUsdAmount / Math.max(price, 0.01)).toFixed(2);
+  }, [hasInsufficientBalance, netUsdAmount, probability, selectedSide]);
 
   const formatTokenBalance = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 4 });
   const formatUsd = (value: number) =>
@@ -264,6 +267,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const reviewBet = () => {
     if (!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance) return;
 
+    const creatorFeeLabel = formatUsd(creatorFee);
     saveLocalPosition({
       id: `position-${Date.now()}`,
       marketId: market.id,
@@ -274,10 +278,17 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       entry: `${selectedSide === "yes" ? yesPct : noPct}%`,
       current: `${selectedSide === "yes" ? yesPct : noPct}%`,
       pnl: 0,
+      creatorFee: creatorFeeLabel,
+      netStake: formatUsd(netUsdAmount),
       href: `/markets/${market.id}`,
       createdAt: new Date().toISOString(),
     });
-    setBetMessage("Position added to My Positions.");
+    recordLocalMarketTrade(market.id, selectedSide, usdAmount);
+    setBetMessage(
+      market.status
+        ? `Position added. ${creatorFeeLabel} creator fee routes back to the creator wallet.`
+        : "Position added to My Positions.",
+    );
   };
 
   return (
@@ -306,6 +317,11 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                   {market.trending && (
                     <span className="rounded-md border border-[#FFD60A]/40 bg-[#FFD60A]/15 px-2 py-1 text-xs font-semibold text-[#FFD60A] backdrop-blur">
                       Trending
+                    </span>
+                  )}
+                  {market.status && (
+                    <span className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-xs font-semibold text-white backdrop-blur">
+                      {market.status === "pending" ? "Pending Admin Review" : "Creator Market"}
                     </span>
                   )}
                 </div>
@@ -339,6 +355,14 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               </div>
 
               <SentimentBar probability={probability} signals={market.sentimentSignals} />
+
+              {market.status && (
+                <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 text-sm leading-6 text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
+                  Creator markets route <span className="font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">1%</span> of
+                  each trade back to the creator wallet after execution. Odds move with trade flow once the market is
+                  approved.
+                </div>
+              )}
 
               <div>
                 <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Description</h2>
@@ -747,6 +771,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 <span>Estimated Shares</span>
                 <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{estimatedShares}</span>
               </div>
+              {market.status && (
+                <div className="mt-2 flex justify-between text-[#525252] dark:text-[#A1A1A1]">
+                  <span>Creator Fee 1%</span>
+                  <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{formatUsd(creatorFee)}</span>
+                </div>
+              )}
             </div>
 
             {betMessage && (

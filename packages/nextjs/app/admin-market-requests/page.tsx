@@ -9,8 +9,10 @@ const demoPassphrase = ["zama", "private", "markets", "2026"].join("-");
 
 const formatDate = (date: string) =>
   new Date(date).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
 export default function AdminMarketRequestsPage() {
@@ -97,17 +99,50 @@ export default function AdminMarketRequestsPage() {
   }
 
   return (
-    <section className="px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-6">
-          <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Market Request Admin</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
-            Review pending market creation requests. This page is intentionally unlinked in navigation; backend auth
-            should protect this route before launch.
-          </p>
+    <section className="px-4 py-5 sm:px-6">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Market Request Admin</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
+              Review creator-submitted markets before they go live. Backend auth should protect this route before
+              launch.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="rounded-md border border-[#E5E5E5] bg-white px-3 py-2 dark:border-[#1F1F1F] dark:bg-[#141414]">
+              <div className="font-mono text-lg font-semibold text-[#FFD60A]">{pendingRequests.length}</div>
+              <div className="text-[#525252] dark:text-[#A1A1A1]">Pending</div>
+            </div>
+            <div className="rounded-md border border-[#E5E5E5] bg-white px-3 py-2 dark:border-[#1F1F1F] dark:bg-[#141414]">
+              <div className="font-mono text-lg font-semibold text-[#16A34A]">
+                {requests.filter(request => request.status === "open").length}
+              </div>
+              <div className="text-[#525252] dark:text-[#A1A1A1]">Accepted</div>
+            </div>
+            <div className="rounded-md border border-[#E5E5E5] bg-white px-3 py-2 dark:border-[#1F1F1F] dark:bg-[#141414]">
+              <div className="font-mono text-lg font-semibold text-[#DC2626]">
+                {requests.filter(request => request.status === "declined").length}
+              </div>
+              <div className="text-[#525252] dark:text-[#A1A1A1]">Declined</div>
+            </div>
+          </div>
         </header>
 
-        <div className="grid gap-4">
+        <div className="mb-4 rounded-md border border-[#FFD60A]/30 bg-[#FFD60A]/10 px-4 py-3 text-sm leading-6 text-[#A37500] dark:text-[#FFD60A]">
+          Accepted creator markets appear under Creator Markets and collect a 1% demo trading fee for the creator
+          wallet.
+        </div>
+
+        <div className="grid gap-3">
+          <div className="hidden grid-cols-[5rem_minmax(0,1fr)_9rem_8rem_17rem] gap-3 rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#525252] dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#A1A1A1] lg:grid">
+            <span>Cover</span>
+            <span>Request</span>
+            <span>Created</span>
+            <span>Stake</span>
+            <span>Review</span>
+          </div>
+
           {pendingRequests.length === 0 && (
             <div className="rounded-lg border border-[#E5E5E5] bg-white p-5 text-sm text-[#525252] dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#A1A1A1]">
               No pending requests right now.
@@ -117,9 +152,9 @@ export default function AdminMarketRequestsPage() {
           {pendingRequests.map(request => (
             <article
               key={request.id}
-              className="grid gap-4 rounded-lg border border-[#E5E5E5] bg-white p-4 dark:border-[#1F1F1F] dark:bg-[#141414] lg:grid-cols-[12rem_minmax(0,1fr)_16rem]"
+              className="grid gap-3 rounded-lg border border-[#E5E5E5] bg-white p-3 dark:border-[#1F1F1F] dark:bg-[#141414] lg:grid-cols-[5rem_minmax(0,1fr)_9rem_8rem_17rem] lg:items-center"
             >
-              <div className="h-36 overflow-hidden rounded-md border border-[#E5E5E5] bg-[#F8FAFC] dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
+              <div className="h-24 overflow-hidden rounded-md border border-[#E5E5E5] bg-[#F8FAFC] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] lg:h-16">
                 {request.coverImageDataUrl ? (
                   <div
                     aria-hidden="true"
@@ -138,70 +173,64 @@ export default function AdminMarketRequestsPage() {
                   <span className="rounded-md border border-[#FFD60A]/40 px-2 py-1 font-semibold text-[#A37500] dark:text-[#FFD60A]">
                     {request.category}
                   </span>
-                  <span className="rounded-md border border-[#E5E5E5] px-2 py-1 text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]">
-                    {formatDate(request.createdAt)}
-                  </span>
-                  <span className="rounded-md border border-[#E5E5E5] px-2 py-1 text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]">
-                    ${request.creatorStake} creator stake
+                  <span className="rounded-md border border-[#16A34A]/30 px-2 py-1 font-semibold text-[#16A34A] dark:text-[#22C55E]">
+                    1% creator fee
                   </span>
                 </div>
-                <h2 className="mt-3 text-lg font-semibold leading-snug text-[#0A0A0A] dark:text-[#FAFAFA]">
+                <h2 className="mt-2 truncate text-base font-semibold leading-snug text-[#0A0A0A] dark:text-[#FAFAFA]">
                   {request.question}
                 </h2>
-                <p className="mt-3 line-clamp-3 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#525252] dark:text-[#A1A1A1]">
                   {request.rules}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {request.sources.map(source => (
-                    <a
-                      key={source}
-                      href={source}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="smooth-action max-w-full truncate rounded-md border border-[#E5E5E5] px-2 py-1 text-xs text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
-                    >
-                      {source}
-                    </a>
-                  ))}
-                </div>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="text-xs text-[#525252] dark:text-[#A1A1A1] lg:text-sm">
+                {formatDate(request.createdAt)}
+              </div>
+
+              <div className="font-mono text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                ${request.creatorStake}
+              </div>
+
+              <div className="grid gap-2">
                 <textarea
                   value={notes[request.id] ?? ""}
                   onChange={event => setNotes(current => ({ ...current, [request.id]: event.target.value }))}
                   placeholder="Admin note..."
-                  className="min-h-24 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
+                  className="min-h-16 resize-y rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
                 />
-                <button
-                  type="button"
-                  onClick={() => reviewRequest(request.id, "open")}
-                  className="smooth-action flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-[#16A34A] text-sm font-semibold text-white"
-                >
-                  <CheckCircle2 size={16} />
-                  Accept
-                </button>
-                <button
-                  type="button"
-                  onClick={() => reviewRequest(request.id, "declined")}
-                  className="smooth-action flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-[#DC2626]/60 text-sm font-semibold text-[#DC2626] dark:text-[#EF4444]"
-                >
-                  <XCircle size={16} />
-                  Decline
-                </button>
-                <Link
-                  href={`/markets/${request.id}?from=admin`}
-                  className="smooth-action flex h-10 items-center justify-center rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
-                >
-                  Preview
-                </Link>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => reviewRequest(request.id, "open")}
+                    className="smooth-action flex h-9 cursor-pointer items-center justify-center gap-1 rounded-md bg-[#16A34A] text-xs font-semibold text-white"
+                  >
+                    <CheckCircle2 size={14} />
+                    Accept
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => reviewRequest(request.id, "declined")}
+                    className="smooth-action flex h-9 cursor-pointer items-center justify-center gap-1 rounded-md border border-[#DC2626]/60 text-xs font-semibold text-[#DC2626] dark:text-[#EF4444]"
+                  >
+                    <XCircle size={14} />
+                    Decline
+                  </button>
+                  <Link
+                    href={`/markets/${request.id}?from=admin`}
+                    className="smooth-action flex h-9 items-center justify-center rounded-md border border-[#E5E5E5] text-xs font-semibold text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                  >
+                    Preview
+                  </Link>
+                </div>
               </div>
             </article>
           ))}
         </div>
 
         {reviewedRequests.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-6">
             <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Reviewed</h2>
             <div className="mt-3 grid gap-2">
               {reviewedRequests.map(request => (

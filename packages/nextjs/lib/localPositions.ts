@@ -10,6 +10,8 @@ export type LocalPosition = {
   entry: string;
   current: string;
   pnl: number;
+  creatorFee?: string;
+  netStake?: string;
   href: string;
   createdAt: string;
 };

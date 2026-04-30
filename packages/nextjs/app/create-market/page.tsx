@@ -339,7 +339,8 @@ export default function CreateMarketPage() {
 
             <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 text-sm leading-6 text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
               Market creation requests require a minimum $1 wallet-backed stake. The request stays pending until an
-              admin approves it, and users can only submit one request every 24 hours.
+              admin approves it, users can only submit one request every 24 hours, and approved creator markets earn 1%
+              of each trade back to the creator wallet.
             </div>
 
             <div className="grid gap-5 md:grid-cols-3">

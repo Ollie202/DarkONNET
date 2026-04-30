@@ -88,6 +88,16 @@ export const MarketCard = ({ market }: { market: Market }) => {
           <span className={`text-[10px] tracking-wider px-2 py-0.5 rounded-md border ${catClass}`}>
             {market.category[0].toUpperCase() + market.category.slice(1)}
           </span>
+          {market.status === "pending" && (
+            <span className="rounded-md border border-[#FFD60A]/40 px-2 py-0.5 text-[10px] tracking-wider text-[#A37500] dark:text-[#FFD60A]">
+              Pending
+            </span>
+          )}
+          {market.status === "open" && (
+            <span className="rounded-md border border-[#16A34A]/30 px-2 py-0.5 text-[10px] tracking-wider text-[#16A34A] dark:text-[#22C55E]">
+              Creator
+            </span>
+          )}
           {market.trending && (
             <span className="inline-flex items-center gap-1 text-[10px] text-[#D97706] dark:text-[#F59E0B]">
               <Flame size={11} /> Trending
@@ -129,7 +139,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
         <span className="inline-flex items-center gap-1">
           <Lock size={11} /> Volume {market.encryptedVolumeLabel}
         </span>
-        <span className="font-mono">ID {market.id.slice(0, 6)}</span>
+        <span className="font-mono">{market.status ? "Fee 1%" : `ID ${market.id.slice(0, 6)}`}</span>
       </footer>
     </article>
   );
