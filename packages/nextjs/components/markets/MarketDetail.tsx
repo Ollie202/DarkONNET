@@ -8,6 +8,7 @@ import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
 import { useNotifications } from "~~/components/notifications/NotificationsContext";
 import { useProfile } from "~~/components/profile/ProfileContext";
+import { saveLocalPosition } from "~~/lib/localPositions";
 import { type Market, formatTimeRemaining } from "~~/lib/mockMarkets";
 
 type SelectedSide = "yes" | "no" | null;
@@ -123,6 +124,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [selectedToken, setSelectedToken] = useState(walletTokens[0].symbol);
   const [amountMode, setAmountMode] = useState<AmountMode>("usd");
   const [amount, setAmount] = useState("");
+  const [betMessage, setBetMessage] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
   const [commentSort, setCommentSort] = useState<CommentSort>("top");
   const [comments, setComments] = useState<MarketComment[]>(sampleComments);
@@ -255,6 +257,25 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     });
   };
 
+  const reviewBet = () => {
+    if (!selectedSide || !amount || hasInsufficientBalance) return;
+
+    saveLocalPosition({
+      id: `position-${Date.now()}`,
+      marketId: market.id,
+      market: market.question,
+      status: "open",
+      side: selectedSide === "yes" ? "Yes" : "No",
+      stake: formatUsd(usdAmount),
+      entry: `${selectedSide === "yes" ? yesPct : noPct}%`,
+      current: `${selectedSide === "yes" ? yesPct : noPct}%`,
+      pnl: 0,
+      href: `/markets/${market.id}`,
+      createdAt: new Date().toISOString(),
+    });
+    setBetMessage("Position added to My Positions.");
+  };
+
   return (
     <section className="px-6 py-6 lg:h-[calc(100vh-3.5rem)] lg:overflow-hidden">
       <div className="mx-auto grid max-w-7xl gap-6 lg:h-full lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -326,8 +347,8 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Resolution Rules</h2>
                 <div className="mt-3 space-y-3 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
                   <p>
-                    Resolves Yes if the condition in the market title is confirmed by reliable public reporting before
-                    the resolution date. Otherwise, it resolves No.
+                    {market.rules ||
+                      "Resolves Yes if the condition in the market title is confirmed by reliable public reporting before the resolution date. Otherwise, it resolves No."}
                   </p>
                   <p>
                     Ambiguous reporting, conflicting sources, or incomplete data should be settled by the clearest
@@ -335,6 +356,25 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                   </p>
                 </div>
               </div>
+
+              {market.sources && market.sources.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Sources</h2>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {market.sources.map(source => (
+                      <a
+                        key={source}
+                        href={source}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="smooth-action truncate rounded-md border border-[#E5E5E5] bg-[#F8FAFC] px-3 py-2 text-sm text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                      >
+                        {source}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center justify-between gap-3">
@@ -693,8 +733,13 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               </div>
             </div>
 
+            {betMessage && (
+              <div className="mt-3 text-sm font-semibold text-[#16A34A] dark:text-[#22C55E]">{betMessage}</div>
+            )}
+
             <button
               type="button"
+              onClick={reviewBet}
               disabled={!selectedSide || !amount || hasInsufficientBalance}
               className="smooth-action mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
             >

@@ -1,18 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type CategoryFilter, CategoryTabs } from "~~/components/markets/CategoryTabs";
 import { MarketCard } from "~~/components/markets/MarketCard";
-import { mockMarkets } from "~~/lib/mockMarkets";
+import { getAllMarkets } from "~~/lib/localMarkets";
+import { type Market } from "~~/lib/mockMarkets";
 
 export const MarketGrid = () => {
   const [filter, setFilter] = useState<CategoryFilter>("trending");
+  const [markets, setMarkets] = useState<Market[]>([]);
+
+  useEffect(() => {
+    const syncMarkets = () => setMarkets(getAllMarkets());
+
+    syncMarkets();
+    window.addEventListener("local-markets-updated", syncMarkets);
+    window.addEventListener("storage", syncMarkets);
+
+    return () => {
+      window.removeEventListener("local-markets-updated", syncMarkets);
+      window.removeEventListener("storage", syncMarkets);
+    };
+  }, []);
 
   const visible = useMemo(() => {
-    if (filter === "all") return mockMarkets;
-    if (filter === "trending") return mockMarkets.filter(m => m.trending);
-    return mockMarkets.filter(m => m.category === filter);
-  }, [filter]);
+    if (filter === "all") return markets;
+    if (filter === "trending") return markets.filter(m => m.trending);
+    return markets.filter(m => m.category === filter);
+  }, [filter, markets]);
 
   return (
     <section className="px-6 py-6">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bold,
   Calendar,
@@ -15,6 +16,15 @@ import {
   Underline,
   X,
 } from "lucide-react";
+import {
+  type CreateMarketDraft,
+  clearCreateMarketDraft,
+  createMarketFromDraft,
+  emptyCreateMarketDraft,
+  getCreateMarketDraft,
+  saveCreateMarketDraft,
+  saveLocalMarket,
+} from "~~/lib/localMarkets";
 import type { MarketCategory } from "~~/lib/mockMarkets";
 
 const categories: Array<{ value: MarketCategory; label: string }> = [
@@ -50,19 +60,57 @@ const FieldTooltip = ({ label }: { label: string }) => (
 );
 
 export default function CreateMarketPage() {
-  const [coverImageName, setCoverImageName] = useState("");
-  const [sources, setSources] = useState([""]);
+  const router = useRouter();
+  const [draft, setDraft] = useState<CreateMarketDraft>(() =>
+    typeof window === "undefined" ? emptyCreateMarketDraft : getCreateMarketDraft(),
+  );
+  const [formMessage, setFormMessage] = useState("");
+
+  const updateDraft = <Key extends keyof CreateMarketDraft>(key: Key, value: CreateMarketDraft[Key]) => {
+    setFormMessage("");
+    setDraft(currentDraft => ({ ...currentDraft, [key]: value }));
+  };
 
   const updateSource = (index: number, value: string) => {
-    setSources(currentSources => currentSources.map((source, sourceIndex) => (sourceIndex === index ? value : source)));
+    updateDraft(
+      "sources",
+      draft.sources.map((source, sourceIndex) => (sourceIndex === index ? value : source)),
+    );
   };
 
   const addSource = () => {
-    setSources(currentSources => (currentSources.length >= MAX_SOURCES ? currentSources : [...currentSources, ""]));
+    updateDraft("sources", draft.sources.length >= MAX_SOURCES ? draft.sources : [...draft.sources, ""]);
   };
 
   const removeSource = (index: number) => {
-    setSources(currentSources => currentSources.filter((_, sourceIndex) => sourceIndex !== index));
+    updateDraft(
+      "sources",
+      draft.sources.filter((_, sourceIndex) => sourceIndex !== index),
+    );
+  };
+
+  const saveDraft = () => {
+    saveCreateMarketDraft(draft);
+    setFormMessage("Draft saved locally.");
+  };
+
+  const submitMarket = () => {
+    if (
+      !draft.question.trim() ||
+      !draft.category ||
+      !draft.rules.trim() ||
+      !draft.presaleEndDate ||
+      !draft.resolutionDate
+    ) {
+      setFormMessage("Add a question, category, rules, presale end date, and resolution date before submitting.");
+      return;
+    }
+
+    const market = createMarketFromDraft(draft);
+    saveLocalMarket(market);
+    clearCreateMarketDraft();
+    setDraft(emptyCreateMarketDraft);
+    router.push(`/markets/${market.id}`);
   };
 
   return (
@@ -83,6 +131,8 @@ export default function CreateMarketPage() {
               </span>
               <input
                 type="text"
+                value={draft.question}
+                onChange={event => updateDraft("question", event.target.value)}
                 placeholder="Enter the question..."
                 className="mt-2 h-11 w-full rounded-md border border-[#CBD5E1] bg-white px-4 text-sm text-[#0A0A0A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
               />
@@ -92,8 +142,12 @@ export default function CreateMarketPage() {
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
                 Category <span className="text-[#EF4444]">*</span>
               </span>
-              <select className="mt-2 h-11 w-full cursor-pointer rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-medium text-[#0A0A0A] outline-none transition-colors focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]">
-                <option>Select category</option>
+              <select
+                value={draft.category}
+                onChange={event => updateDraft("category", event.target.value as MarketCategory)}
+                className="mt-2 h-11 w-full cursor-pointer rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-medium text-[#0A0A0A] outline-none transition-colors focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
+              >
+                <option value="">Select category</option>
                 {categories.map(category => (
                   <option key={category.value} value={category.value}>
                     {category.label}
@@ -111,18 +165,20 @@ export default function CreateMarketPage() {
                   type="file"
                   accept="image/*"
                   className="sr-only"
-                  onChange={event => setCoverImageName(event.target.files?.[0]?.name ?? "")}
+                  onChange={event => updateDraft("coverImageName", event.target.files?.[0]?.name ?? "")}
                 />
               </label>
-              {coverImageName && (
-                <div className="mt-2 text-xs font-medium text-[#525252] dark:text-[#A1A1A1]">{coverImageName}</div>
+              {draft.coverImageName && (
+                <div className="mt-2 text-xs font-medium text-[#525252] dark:text-[#A1A1A1]">
+                  {draft.coverImageName}
+                </div>
               )}
             </div>
 
             <div>
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Sources</span>
               <div className="mt-2 space-y-2">
-                {sources.map((source, index) => (
+                {draft.sources.map((source, index) => (
                   <div key={index} className="flex gap-2">
                     <div className="flex h-11 flex-1 items-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 dark:border-[#334155] dark:bg-[#020817]">
                       <LinkIcon size={16} className="shrink-0 text-[#525252] dark:text-[#A1A1A1]" />
@@ -134,7 +190,7 @@ export default function CreateMarketPage() {
                         className="w-full bg-transparent text-sm text-[#0A0A0A] outline-none placeholder:text-[#94A3B8] dark:text-[#FAFAFA]"
                       />
                     </div>
-                    {sources.length > 1 && (
+                    {draft.sources.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeSource(index)}
@@ -150,11 +206,11 @@ export default function CreateMarketPage() {
               <button
                 type="button"
                 onClick={addSource}
-                disabled={sources.length >= MAX_SOURCES}
+                disabled={draft.sources.length >= MAX_SOURCES}
                 className="smooth-action mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-semibold text-[#0A0A0A] hover:border-[#FFD60A]/70 dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
               >
                 <Plus size={18} />
-                Add Source {sources.length}/{MAX_SOURCES}
+                Add Source {draft.sources.length}/{MAX_SOURCES}
               </button>
             </div>
 
@@ -180,6 +236,8 @@ export default function CreateMarketPage() {
                   })}
                 </div>
                 <textarea
+                  value={draft.rules}
+                  onChange={event => updateDraft("rules", event.target.value)}
                   placeholder="Rules..."
                   className="min-h-44 w-full resize-y bg-transparent px-4 py-4 text-sm text-[#0A0A0A] outline-none placeholder:text-[#94A3B8] dark:text-[#FAFAFA]"
                 />
@@ -193,7 +251,12 @@ export default function CreateMarketPage() {
                 </span>
                 <div className="mt-2 flex h-11 items-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-semibold text-[#0A0A0A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]">
                   <Calendar size={16} className="text-[#525252] dark:text-[#A1A1A1]" />
-                  <input type="datetime-local" className="w-full bg-transparent outline-none" />
+                  <input
+                    type="datetime-local"
+                    value={draft.presaleEndDate}
+                    onChange={event => updateDraft("presaleEndDate", event.target.value)}
+                    className="w-full bg-transparent outline-none"
+                  />
                 </div>
               </label>
 
@@ -203,7 +266,12 @@ export default function CreateMarketPage() {
                 </span>
                 <div className="mt-2 flex h-11 items-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-semibold text-[#0A0A0A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]">
                   <Calendar size={16} className="text-[#525252] dark:text-[#A1A1A1]" />
-                  <input type="datetime-local" className="w-full bg-transparent outline-none" />
+                  <input
+                    type="datetime-local"
+                    value={draft.resolutionDate}
+                    onChange={event => updateDraft("resolutionDate", event.target.value)}
+                    className="w-full bg-transparent outline-none"
+                  />
                 </div>
               </label>
             </div>
@@ -221,6 +289,8 @@ export default function CreateMarketPage() {
                 </span>
                 <input
                   type="number"
+                  value={draft.softCap}
+                  onChange={event => updateDraft("softCap", event.target.value)}
                   placeholder="1000"
                   className="mt-2 h-11 w-full rounded-md border border-[#CBD5E1] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
                 />
@@ -236,7 +306,11 @@ export default function CreateMarketPage() {
               </div>
               <label className="block">
                 <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Token</span>
-                <select className="mt-2 h-11 w-full cursor-pointer rounded-md border border-[#CBD5E1] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]">
+                <select
+                  value={draft.token}
+                  onChange={event => updateDraft("token", event.target.value)}
+                  className="mt-2 h-11 w-full cursor-pointer rounded-md border border-[#CBD5E1] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
+                >
                   <option>Testnet ETH</option>
                   <option>Mock USDC</option>
                 </select>
@@ -244,14 +318,21 @@ export default function CreateMarketPage() {
             </div>
 
             <div className="flex flex-col gap-3 border-t border-[#E5E5E5] pt-5 dark:border-[#1F1F1F] sm:flex-row sm:justify-end">
+              {formMessage && (
+                <div className="mr-auto flex min-h-11 items-center text-sm font-semibold text-[#525252] dark:text-[#A1A1A1]">
+                  {formMessage}
+                </div>
+              )}
               <button
                 type="button"
+                onClick={saveDraft}
                 className="smooth-action h-11 cursor-pointer rounded-md border border-[#CBD5E1] px-5 text-sm font-semibold text-[#525252] hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:border-[#334155] dark:text-[#A1A1A1] dark:hover:bg-[#0A0A0A] dark:hover:text-[#FAFAFA]"
               >
                 Save Draft
               </button>
               <button
                 type="button"
+                onClick={submitMarket}
                 className="smooth-action h-11 cursor-pointer rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
               >
                 Submit Market

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, BarChart3, CheckCircle2, CircleDot, LockKeyhole, XCircle } from "lucide-react";
+import { getLocalPositions } from "~~/lib/localPositions";
 
 type PositionStatus = "open" | "closed" | "completed";
 
@@ -102,7 +103,25 @@ const formatPnl = (pnl: number) =>
 
 export default function PositionsPage() {
   const [activeTab, setActiveTab] = useState<PositionStatus>("open");
-  const visiblePositions = useMemo(() => positions.filter(position => position.status === activeTab), [activeTab]);
+  const [allPositions, setAllPositions] = useState<Position[]>(positions);
+
+  useEffect(() => {
+    const syncPositions = () => setAllPositions([...getLocalPositions(), ...positions]);
+
+    syncPositions();
+    window.addEventListener("local-positions-updated", syncPositions);
+    window.addEventListener("storage", syncPositions);
+
+    return () => {
+      window.removeEventListener("local-positions-updated", syncPositions);
+      window.removeEventListener("storage", syncPositions);
+    };
+  }, []);
+
+  const visiblePositions = useMemo(
+    () => allPositions.filter(position => position.status === activeTab),
+    [activeTab, allPositions],
+  );
   const totalPnl = visiblePositions.reduce((total, position) => total + position.pnl, 0);
 
   return (

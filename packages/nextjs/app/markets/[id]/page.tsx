@@ -1,5 +1,4 @@
-import { notFound } from "next/navigation";
-import { MarketDetail } from "~~/components/markets/MarketDetail";
+import { MarketDetailResolver } from "~~/components/markets/MarketDetailResolver";
 import { mockMarkets } from "~~/lib/mockMarkets";
 
 type MarketPageProps = {
@@ -12,9 +11,5 @@ export default async function MarketPage({ params }: MarketPageProps) {
   const { id } = await params;
   const market = mockMarkets.find(item => item.id === id);
 
-  if (!market) {
-    notFound();
-  }
-
-  return <MarketDetail market={market} />;
+  return <MarketDetailResolver id={id} initialMarket={market} />;
 }

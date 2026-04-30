@@ -22,6 +22,11 @@ export type Market = {
     crowd: number;
   };
   trending?: boolean;
+  rules?: string;
+  sources?: string[];
+  softCap?: number;
+  token?: string;
+  status?: "draft" | "pending" | "open";
 };
 
 export const mockMarkets: Market[] = [
