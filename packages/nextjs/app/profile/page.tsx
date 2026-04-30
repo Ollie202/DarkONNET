@@ -2,11 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bell, BriefcaseBusiness, Check, Mail, UserRound } from "lucide-react";
-import { useAccount } from "wagmi";
 import { type ProfileSettings, useProfile } from "~~/components/profile/ProfileContext";
-
-const shortAddress = (address?: string) =>
-  address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Not connected";
 
 const mockPositions = [
   { market: "Will the Fed cut rates before the end of summer 2026?", side: "No", amount: "$20", pnl: "+$3.40" },
@@ -18,7 +14,6 @@ const profileSnapshot = (profile: ProfileSettings) => JSON.stringify(profile);
 
 export default function ProfilePage() {
   const profile = useProfile();
-  const { address } = useAccount();
   const [draft, setDraft] = useState<ProfileSettings>({
     profileName: profile.profileName,
     bio: profile.bio,
@@ -42,7 +37,7 @@ export default function ProfilePage() {
   }, [profile.bio, profile.email, profile.profileName, profile.receivePositionNotifications, profile.receiveUpdates]);
 
   const isDirty = useMemo(() => profileSnapshot(draft) !== savedSnapshot, [draft, savedSnapshot]);
-  const displayName = profile.profileName || shortAddress(address);
+  const displayName = profile.profileName || "Choose username";
 
   const updateDraft = <Key extends keyof ProfileSettings>(key: Key, value: ProfileSettings[Key]) => {
     setHasConfirmed(false);
@@ -89,7 +84,7 @@ export default function ProfilePage() {
                 <input
                   value={draft.profileName}
                   onChange={event => updateDraft("profileName", event.target.value)}
-                  placeholder={shortAddress(address)}
+                  placeholder="Choose a username"
                   className="mt-2 h-11 w-full rounded-md border border-[#E5E5E5] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
                 />
               </label>

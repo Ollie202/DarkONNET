@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, CalendarClock, ChevronDown, Lock, MessageCircle, ShieldCheck, ThumbsUp } from "lucide-react";
-import { useAccount } from "wagmi";
 import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
 import { useNotifications } from "~~/components/notifications/NotificationsContext";
@@ -109,12 +108,10 @@ const getMarketDescription = (market: Market) =>
   `This market resolves according to credible public reporting and the stated resolution date. The outcome should be judged from reliable sources relevant to ${market.signalLabel.toLowerCase()}.`;
 
 const formatCategory = (category: Market["category"]) => category[0].toUpperCase() + category.slice(1);
-const shortAddress = (address?: string) => (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "You");
 
 export const MarketDetail = ({ market }: MarketDetailProps) => {
   const { addNotification } = useNotifications();
   const { profileName } = useProfile();
-  const { address } = useAccount();
   const searchParams = useSearchParams();
   const probability = useLiveProbability(market.yesProbability, market.sentimentSignals);
   const yesPct = Math.round(probability * 100);
@@ -138,7 +135,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const tokenAmount = amountMode === "token" ? parsedAmount || 0 : (parsedAmount || 0) / selectedTokenInfo.usdPrice;
   const usdAmount = amountMode === "usd" ? parsedAmount || 0 : (parsedAmount || 0) * selectedTokenInfo.usdPrice;
   const hasInsufficientBalance = tokenAmount > selectedTokenInfo.balance;
-  const currentProfileName = profileName || shortAddress(address);
+  const currentProfileName = profileName || "New user";
 
   useEffect(() => {
     const side = searchParams.get("side");

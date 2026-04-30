@@ -8,7 +8,11 @@ type ProfileContextValue = {
   email: string;
   receiveUpdates: boolean;
   receivePositionNotifications: boolean;
+  walletAddress: string;
+  needsUsername: boolean;
+  loadWalletProfile: (address?: string) => void;
   setProfileName: (name: string) => void;
+  saveUsernameForWallet: (name: string) => void;
   saveProfile: (profile: ProfileSettings) => void;
   clearProfileName: () => void;
 };
@@ -41,8 +45,12 @@ const cleanProfile = (profile: ProfileSettings): ProfileSettings => ({
   receivePositionNotifications: profile.receivePositionNotifications,
 });
 
+const getWalletStorageKey = (address: string) => `profile:wallet:${address.toLowerCase()}`;
+
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<ProfileSettings>(defaultProfile);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [needsUsername, setNeedsUsername] = useState(false);
 
   useEffect(() => {
     const storedProfile = window.localStorage.getItem(PROFILE_STORAGE_KEY);
@@ -60,16 +68,57 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     setProfile(prev => ({ ...prev, profileName: storedName }));
   }, []);
 
-  const saveProfile = useCallback((nextProfile: ProfileSettings) => {
-    const clean = cleanProfile(nextProfile);
-    setProfile(clean);
-    window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(clean));
-    if (clean.profileName) {
-      window.localStorage.setItem(NAME_STORAGE_KEY, clean.profileName);
-    } else {
-      window.localStorage.removeItem(NAME_STORAGE_KEY);
+  const persistProfile = useCallback(
+    (nextProfile: ProfileSettings, address = walletAddress) => {
+      window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(nextProfile));
+      if (address) window.localStorage.setItem(getWalletStorageKey(address), JSON.stringify(nextProfile));
+      if (nextProfile.profileName) window.localStorage.setItem(NAME_STORAGE_KEY, nextProfile.profileName);
+    },
+    [walletAddress],
+  );
+
+  const loadWalletProfile = useCallback((address?: string) => {
+    if (!address) {
+      setWalletAddress("");
+      setNeedsUsername(false);
+      return;
     }
+
+    const normalizedAddress = address.toLowerCase();
+    const storedProfile = window.localStorage.getItem(getWalletStorageKey(normalizedAddress));
+    setWalletAddress(normalizedAddress);
+
+    if (storedProfile) {
+      try {
+        const nextProfile = { ...defaultProfile, ...JSON.parse(storedProfile) };
+        setProfile(nextProfile);
+        setNeedsUsername(!nextProfile.profileName);
+        return;
+      } catch {
+        window.localStorage.removeItem(getWalletStorageKey(normalizedAddress));
+      }
+    }
+
+    setProfile(defaultProfile);
+    setNeedsUsername(true);
   }, []);
+
+  const saveProfile = useCallback(
+    (nextProfile: ProfileSettings) => {
+      const clean = cleanProfile(nextProfile);
+      setProfile(clean);
+      persistProfile(clean);
+      setNeedsUsername(!clean.profileName);
+    },
+    [persistProfile],
+  );
+
+  const saveUsernameForWallet = useCallback(
+    (name: string) => {
+      saveProfile({ ...profile, profileName: name });
+    },
+    [profile, saveProfile],
+  );
 
   const setProfileName = useCallback(
     (name: string) => {
@@ -86,11 +135,24 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
   const value = useMemo(() => {
     return {
       ...profile,
+      walletAddress,
+      needsUsername,
+      loadWalletProfile,
       setProfileName,
+      saveUsernameForWallet,
       saveProfile,
       clearProfileName,
     };
-  }, [clearProfileName, profile, saveProfile, setProfileName]);
+  }, [
+    clearProfileName,
+    loadWalletProfile,
+    needsUsername,
+    profile,
+    saveProfile,
+    saveUsernameForWallet,
+    setProfileName,
+    walletAddress,
+  ]);
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 };
