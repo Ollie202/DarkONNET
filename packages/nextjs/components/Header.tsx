@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Droplets, Menu, WalletCards } from "lucide-react";
+import { Droplets, Menu } from "lucide-react";
 import { useAccount } from "wagmi";
 import { ThemeToggle } from "~~/components/ThemeToggle";
 import { RainbowKitCustomConnectButton } from "~~/components/helper";
 import { NotificationsMenu } from "~~/components/notifications/NotificationsMenu";
 import { useSidebar } from "~~/components/sidebar/SidebarContext";
+import { DEFAULT_TOKEN_BALANCE, formatPlatformToken } from "~~/lib/token";
 
 export const Header = () => {
   const { toggle } = useSidebar();
@@ -38,10 +39,8 @@ export const Header = () => {
       </div>
       <div className="flex min-w-0 items-center gap-1 sm:gap-2">
         {isConnected && (
-          <div className="hidden h-9 items-center gap-2 rounded-md border border-[#E5E5E5] px-3 text-sm font-semibold text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#FAFAFA] md:inline-flex">
-            <WalletCards size={16} className="text-[#A37500] dark:text-[#FFD60A]" />
-            <span className="text-[#525252] dark:text-[#A1A1A1]">Balance</span>
-            <span className="font-mono">5,000 cUSD</span>
+          <div className="hidden h-9 items-center rounded-full border border-[#FFD60A]/35 bg-[#FFD60A]/10 px-4 text-sm font-semibold text-[#0A0A0A] shadow-[0_12px_30px_-24px_rgba(255,214,10,0.65)] dark:text-[#FAFAFA] md:inline-flex">
+            <span className="font-mono">{formatPlatformToken(DEFAULT_TOKEN_BALANCE)}</span>
           </div>
         )}
         <ThemeToggle />

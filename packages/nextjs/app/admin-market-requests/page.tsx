@@ -191,7 +191,7 @@ export default function AdminMarketRequestsPage() {
               </div>
 
               <div className="font-mono text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                {request.creatorStake} cUSD
+                {request.creatorStake} cUSDT
               </div>
 
               <div className="grid gap-2">

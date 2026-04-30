@@ -301,5 +301,5 @@ export const formatMarketVolume = (market: Pick<Market, "id" | "encryptedVolumeL
 
   const seed = [...market.id].reduce((total, character) => total + character.charCodeAt(0), 0);
   const volume = 25_000 + seed * 730;
-  return `${volume.toLocaleString()} cUSD`;
+  return `${volume.toLocaleString()} cUSDT`;
 };

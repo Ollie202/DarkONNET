@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ShieldCheck } from "lucide-react";
+import { useAccount } from "wagmi";
 import { type CategoryFilter, CategoryTabs } from "~~/components/markets/CategoryTabs";
 import { MarketCard } from "~~/components/markets/MarketCard";
 import { useProfile } from "~~/components/profile/ProfileContext";
@@ -14,12 +16,14 @@ type MarketGridProps = {
 };
 
 export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const { profileName, walletAddress } = useProfile();
   const [filter, setFilter] = useState<CategoryFilter>(source === "creator" ? "all" : "trending");
   const [creatorTab, setCreatorTab] = useState<"all" | "mine">("all");
   const [markets, setMarkets] = useState<Market[]>([]);
   const isCreatorMarketView = source === "creator";
-  const creatorKey = walletAddress || profileName;
+  const creatorKey = isConnected ? walletAddress || profileName : "";
 
   useEffect(() => {
     const syncMarkets = () =>
@@ -42,10 +46,11 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
   }, [creatorKey, creatorTab, isCreatorMarketView]);
 
   const visible = useMemo(() => {
+    if (isCreatorMarketView && creatorTab === "mine" && !isConnected) return [];
     if (filter === "all") return markets;
     if (filter === "trending") return markets.filter(m => m.trending);
     return markets.filter(m => m.category === filter);
-  }, [filter, markets]);
+  }, [creatorTab, filter, isConnected, isCreatorMarketView, markets]);
 
   return (
     <section className="px-6 py-6">
@@ -80,7 +85,10 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setCreatorTab(tab.id)}
+              onClick={() => {
+                setCreatorTab(tab.id);
+                if (tab.id === "mine" && !isConnected) openConnectModal?.();
+              }}
               className={`smooth-action h-10 rounded-md px-4 text-sm font-semibold ${
                 creatorTab === tab.id
                   ? "bg-[#FFD60A] text-[#0A0A0A]"
@@ -103,9 +111,23 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
       {visible.length === 0 && (
         <div className="text-center py-16 text-sm text-[#525252] dark:text-[#A1A1A1]">
-          {creatorTab === "mine"
-            ? "You have not created any markets yet."
-            : "No markets in this category yet. Check back soon."}
+          {creatorTab === "mine" && !isConnected ? (
+            <div className="mx-auto max-w-md rounded-lg border border-[#E5E5E5] bg-white p-5 dark:border-[#1F1F1F] dark:bg-[#141414]">
+              <div className="font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Connect wallet to view My Markets</div>
+              <p className="mt-2 leading-6">Creator ownership is tied to your wallet profile.</p>
+              <button
+                type="button"
+                onClick={() => openConnectModal?.()}
+                className="smooth-action mt-4 h-10 rounded-md bg-[#FFD60A] px-4 text-sm font-semibold text-[#0A0A0A]"
+              >
+                Connect Wallet
+              </button>
+            </div>
+          ) : creatorTab === "mine" ? (
+            "You have not created any markets yet."
+          ) : (
+            "No markets in this category yet. Check back soon."
+          )}
         </div>
       )}
     </section>

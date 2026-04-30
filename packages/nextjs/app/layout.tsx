@@ -10,7 +10,7 @@ import { getMetadata } from "~~/utils/helper/getMetadata";
 
 export const metadata = getMetadata({
   title: "DarkONNET Private Prediction Market",
-  description: "Private prediction markets with encrypted positions and cUSD activity on Sepolia.",
+  description: "Private prediction markets with encrypted positions and cUSDT activity on Sepolia.",
 });
 
 const DappWrapper = ({ children }: { children: React.ReactNode }) => {

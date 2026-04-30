@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ArrowUpRight, BarChart3, CheckCircle2, CircleDot, LockKeyhole, XCircle } from "lucide-react";
+import { useAccount } from "wagmi";
 import { closeLocalPosition, getLocalPositions } from "~~/lib/localPositions";
 
 type PositionStatus = "open" | "closed" | "completed";
@@ -31,7 +33,7 @@ const positions: Position[] = [
     market: "Will the Fed cut rates before the end of summer 2026?",
     status: "open",
     side: "No",
-    stake: "20 cUSD",
+    stake: "20 cUSDT",
     entry: "54%",
     current: "62%",
     pnl: 3.4,
@@ -42,7 +44,7 @@ const positions: Position[] = [
     market: "Will BTC reach $150k before 2026 ends?",
     status: "open",
     side: "Yes",
-    stake: "10 cUSD",
+    stake: "10 cUSDT",
     entry: "41%",
     current: "36%",
     pnl: -1.12,
@@ -53,7 +55,7 @@ const positions: Position[] = [
     market: "Will oil trade above $100 before July?",
     status: "closed",
     side: "No",
-    stake: "15 cUSD",
+    stake: "15 cUSDT",
     entry: "48%",
     current: "43%",
     pnl: 1.9,
@@ -64,7 +66,7 @@ const positions: Position[] = [
     market: "Will Argentina win the 2026 World Cup?",
     status: "closed",
     side: "Yes",
-    stake: "5 cUSD",
+    stake: "5 cUSDT",
     entry: "18%",
     current: "15%",
     pnl: -0.64,
@@ -75,7 +77,7 @@ const positions: Position[] = [
     market: "Will a Red Sea shipping route normalize before Q3?",
     status: "completed",
     side: "No",
-    stake: "25 cUSD",
+    stake: "25 cUSDT",
     entry: "57%",
     current: "Resolved No",
     pnl: 11.25,
@@ -86,7 +88,7 @@ const positions: Position[] = [
     market: "Will a Solana ETF be approved in 2026?",
     status: "completed",
     side: "Yes",
-    stake: "12 cUSD",
+    stake: "12 cUSDT",
     entry: "44%",
     current: "Resolved No",
     pnl: -12,
@@ -95,9 +97,11 @@ const positions: Position[] = [
 ];
 
 const formatPnl = (pnl: number) =>
-  `${pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })} cUSD`;
+  `${pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })} cUSDT`;
 
 export default function PositionsPage() {
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const [activeTab, setActiveTab] = useState<PositionStatus>("open");
   const [allPositions, setAllPositions] = useState<Position[]>(positions);
 
@@ -135,6 +139,31 @@ export default function PositionsPage() {
     );
     setActiveTab("closed");
   };
+
+  if (!isConnected) {
+    return (
+      <section className="px-6 py-6">
+        <div className="mx-auto flex min-h-[calc(100vh-10rem)] max-w-3xl items-center justify-center">
+          <div className="w-full rounded-lg border border-[#E5E5E5] bg-white p-6 text-center dark:border-[#1F1F1F] dark:bg-[#141414]">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#FFD60A] text-[#0A0A0A]">
+              <LockKeyhole size={19} />
+            </div>
+            <h1 className="mt-4 text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">My Positions</h1>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
+              Connect your wallet to view open, closed, and completed positions tied to your wallet profile.
+            </p>
+            <button
+              type="button"
+              onClick={() => openConnectModal?.()}
+              className="smooth-action mt-5 h-11 rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
+            >
+              Connect Wallet
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="px-6 py-6">

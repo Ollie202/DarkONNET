@@ -47,7 +47,7 @@ export const emptyCreateMarketDraft: CreateMarketDraft = {
   presaleEndDate: "",
   resolutionDate: "",
   creatorStake: "1",
-  token: "cUSD",
+  token: "cUSDT",
 };
 
 const readJson = <Value>(key: string, fallback: Value): Value => {
@@ -102,11 +102,11 @@ export const updateLocalMarketStatus = (marketId: string, status: LocalMarket["s
   window.dispatchEvent(new Event("local-markets-updated"));
 };
 
-export const recordLocalMarketTrade = (marketId: string, side: "yes" | "no", cUSDAmount: number) => {
+export const recordLocalMarketTrade = (marketId: string, side: "yes" | "no", cUSDTAmount: number) => {
   const nextMarkets = getLocalMarkets().map(market => {
     if (market.id !== marketId) return market;
 
-    const tradeWeight = Math.min(0.08, Math.max(0.01, cUSDAmount / 1000));
+    const tradeWeight = Math.min(0.08, Math.max(0.01, cUSDTAmount / 1000));
     const direction = side === "yes" ? 1 : -1;
     const nextProbability = Math.min(0.96, Math.max(0.04, market.yesProbability + direction * tradeWeight));
     const currentVolume = Number(market.encryptedVolumeLabel.replace(/[^0-9.]/g, "")) || 0;
@@ -114,7 +114,7 @@ export const recordLocalMarketTrade = (marketId: string, side: "yes" | "no", cUS
     return {
       ...market,
       yesProbability: nextProbability,
-      encryptedVolumeLabel: `${Math.round(currentVolume + cUSDAmount).toLocaleString()} cUSD`,
+      encryptedVolumeLabel: `${Math.round(currentVolume + cUSDTAmount).toLocaleString()} cUSDT`,
       signalLabel: side === "yes" ? "Latest trade leaned Yes" : "Latest trade leaned No",
       sentimentSignals: {
         news: market.sentimentSignals.news,
@@ -145,7 +145,7 @@ export const getMarketRequestCooldown = (creatorKey?: string) => {
 export const getCreateMarketDraft = () => ({
   ...emptyCreateMarketDraft,
   ...readJson<Partial<CreateMarketDraft>>(DRAFT_KEY, emptyCreateMarketDraft),
-  token: "cUSD",
+  token: "cUSDT",
 });
 
 export const saveCreateMarketDraft = (draft: CreateMarketDraft) => {
@@ -166,7 +166,7 @@ export const createMarketFromDraft = (draft: CreateMarketDraft, creator: CreateM
     question: draft.question.trim(),
     category: draft.category || "finance",
     yesProbability: 0.5,
-    encryptedVolumeLabel: "0 cUSD",
+    encryptedVolumeLabel: "0 cUSDT",
     endsAt: draft.resolutionDate ? new Date(draft.resolutionDate).toISOString() : createdAt,
     signalLabel: "Awaiting market activity",
     sentimentSignals: { news: 50, volume: 50, crowd: 50 },
@@ -178,6 +178,6 @@ export const createMarketFromDraft = (draft: CreateMarketDraft, creator: CreateM
     coverImageDataUrl: draft.coverImageDataUrl,
     creatorStake: Math.max(1, Number(draft.creatorStake) || 1),
     creatorKey: creator.creatorKey,
-    token: "cUSD",
+    token: "cUSDT",
   };
 };

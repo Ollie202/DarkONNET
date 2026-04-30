@@ -11,6 +11,7 @@ import { BlockieAvatar } from "~~/components/helper";
 import { useProfile } from "~~/components/profile/ProfileContext";
 import { useOutsideClick } from "~~/hooks/helper";
 import { useTargetNetwork } from "~~/hooks/helper/useTargetNetwork";
+import { DEFAULT_TOKEN_BALANCE, formatPlatformToken } from "~~/lib/token";
 
 const shortAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
 
@@ -173,7 +174,7 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
                   <WalletCards size={14} />
                   Balance
                 </span>
-                <span className="font-mono text-sm font-semibold">5,000 cUSD</span>
+                <span className="font-mono text-sm font-semibold">{formatPlatformToken(DEFAULT_TOKEN_BALANCE)}</span>
               </div>
               <div className="mt-1 text-[#525252] dark:text-[#A1A1A1]">Encrypted Sepolia testnet token</div>
             </div>

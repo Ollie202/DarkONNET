@@ -13,6 +13,7 @@ import { useProfile } from "~~/components/profile/ProfileContext";
 import { recordLocalMarketTrade } from "~~/lib/localMarkets";
 import { saveLocalPosition } from "~~/lib/localPositions";
 import { type Market, formatMarketVolume, formatTimeRemaining } from "~~/lib/mockMarkets";
+import { DEFAULT_TOKEN_BALANCE, PLATFORM_TOKEN_LABEL, PLATFORM_TOKEN_SYMBOL, formatPlatformToken } from "~~/lib/token";
 
 type SelectedSide = "yes" | "no" | null;
 type CommentSort = "top" | "new";
@@ -34,7 +35,7 @@ type MarketDetailProps = {
 };
 
 const presetAmounts = [1, 5, 10, 20, 50];
-const CUSD_BALANCE = 5000;
+const cUSDT_BALANCE = DEFAULT_TOKEN_BALANCE;
 
 const sampleComments: MarketComment[] = [
   {
@@ -130,10 +131,10 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const imageUrl = market.coverImageDataUrl ?? marketImages[market.id] ?? fallbackImages[market.category];
   const parsedAmount = Number(amount);
-  const cUsdAmount = parsedAmount || 0;
-  const creatorFee = market.status ? cUsdAmount * 0.01 : 0;
-  const netCUsdAmount = Math.max(0, cUsdAmount - creatorFee);
-  const hasInsufficientBalance = cUsdAmount > CUSD_BALANCE;
+  const cUSDTAmount = parsedAmount || 0;
+  const creatorFee = market.status ? cUSDTAmount * 0.01 : 0;
+  const netCUSDTAmount = Math.max(0, cUSDTAmount - creatorFee);
+  const hasInsufficientBalance = cUSDTAmount > cUSDT_BALANCE;
   const currentProfileName = profileName || "Username Required";
   const isMarketTradable = !market.status || market.status === "open";
   const cameFromAdmin = searchParams.get("from") === "admin";
@@ -146,13 +147,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   }, [searchParams]);
 
   const estimatedShares = useMemo(() => {
-    if (!netCUsdAmount || !selectedSide || hasInsufficientBalance) return "0.00";
+    if (!netCUSDTAmount || !selectedSide || hasInsufficientBalance) return "0.00";
     const price = selectedSide === "yes" ? probability : 1 - probability;
-    return (netCUsdAmount / Math.max(price, 0.01)).toFixed(2);
-  }, [hasInsufficientBalance, netCUsdAmount, probability, selectedSide]);
+    return (netCUSDTAmount / Math.max(price, 0.01)).toFixed(2);
+  }, [hasInsufficientBalance, netCUSDTAmount, probability, selectedSide]);
 
-  const formatCUsd = (value: number) =>
-    `${value.toLocaleString(undefined, { maximumFractionDigits: value >= 1 ? 2 : 4 })} cUSD`;
+  const formatCUSDT = formatPlatformToken;
   const formatUsdEquivalent = (value: number) =>
     `$${value.toLocaleString(undefined, { maximumFractionDigits: value >= 1 ? 2 : 4 })}`;
 
@@ -263,23 +263,23 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       return;
     }
 
-    const creatorFeeLabel = formatCUsd(creatorFee);
+    const creatorFeeLabel = formatCUSDT(creatorFee);
     saveLocalPosition({
       id: `position-${Date.now()}`,
       marketId: market.id,
       market: market.question,
       status: "open",
       side: selectedSide === "yes" ? "Yes" : "No",
-      stake: formatCUsd(cUsdAmount),
+      stake: formatCUSDT(cUSDTAmount),
       entry: `${selectedSide === "yes" ? yesPct : noPct}%`,
       current: `${selectedSide === "yes" ? yesPct : noPct}%`,
       pnl: 0,
       creatorFee: creatorFeeLabel,
-      netStake: formatCUsd(netCUsdAmount),
+      netStake: formatCUSDT(netCUSDTAmount),
       href: `/markets/${market.id}`,
       createdAt: new Date().toISOString(),
     });
-    recordLocalMarketTrade(market.id, selectedSide, cUsdAmount);
+    recordLocalMarketTrade(market.id, selectedSide, cUSDTAmount);
     setBetMessage(
       market.status
         ? `Position added. ${creatorFeeLabel} creator fee routes back to the creator wallet.`
@@ -697,12 +697,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             <label className="mt-5 block">
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Token From Wallet</span>
               <div className="mt-2 flex h-11 items-center justify-between rounded-md border border-[#E5E5E5] bg-white px-3 text-sm font-semibold text-[#0A0A0A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]">
-                <span>cUSD on Sepolia</span>
+                <span>{PLATFORM_TOKEN_LABEL}</span>
                 <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">Only currency</span>
               </div>
               <span className="mt-2 flex justify-between text-xs text-[#525252] dark:text-[#A1A1A1]">
-                <span>Balance {formatCUsd(CUSD_BALANCE)}</span>
-                <span>{formatUsdEquivalent(CUSD_BALANCE)}</span>
+                <span>Balance {formatCUSDT(cUSDT_BALANCE)}</span>
+                <span>{formatUsdEquivalent(cUSDT_BALANCE)}</span>
               </span>
             </label>
 
@@ -710,7 +710,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Amount</span>
                 <span className="rounded-md border border-[#E5E5E5] px-2 py-1 text-xs font-semibold text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]">
-                  cUSD
+                  {PLATFORM_TOKEN_SYMBOL}
                 </span>
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2">
@@ -721,12 +721,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                     onClick={() => addPresetAmount(preset)}
                     className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                   >
-                    {preset} cUSD
+                    {preset} {PLATFORM_TOKEN_SYMBOL}
                   </button>
                 ))}
                 <button
                   type="button"
-                  onClick={() => setAmount(String(CUSD_BALANCE))}
+                  onClick={() => setAmount(String(cUSDT_BALANCE))}
                   className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                 >
                   Max
@@ -737,13 +737,13 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 min="0"
                 value={amount}
                 onChange={event => setAmount(event.target.value)}
-                placeholder="Enter cUSD amount"
+                placeholder={`Enter ${PLATFORM_TOKEN_SYMBOL} amount`}
                 className={`mt-3 h-12 w-full rounded-md border bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:bg-[#0A0A0A] dark:text-[#FAFAFA] ${
                   hasInsufficientBalance ? "border-[#DC2626]" : "border-[#E5E5E5] dark:border-[#1F1F1F]"
                 }`}
               />
               <div className="mt-2 flex justify-between text-xs">
-                <span className="text-[#525252] dark:text-[#A1A1A1]">≈ {formatUsdEquivalent(cUsdAmount)}</span>
+                <span className="text-[#525252] dark:text-[#A1A1A1]">≈ {formatUsdEquivalent(cUSDTAmount)}</span>
                 {hasInsufficientBalance && <span className="font-semibold text-[#DC2626]">Insufficient Balance</span>}
               </div>
             </div>
@@ -762,7 +762,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               {market.status && (
                 <div className="mt-2 flex justify-between text-[#525252] dark:text-[#A1A1A1]">
                   <span>Creator Fee 1%</span>
-                  <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{formatCUsd(creatorFee)}</span>
+                  <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{formatCUSDT(creatorFee)}</span>
                 </div>
               )}
             </div>

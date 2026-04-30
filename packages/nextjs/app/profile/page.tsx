@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Bell, Check, ImageIcon, Mail, UserRound } from "lucide-react";
+import { useAccount } from "wagmi";
 import { type ProfileSettings, useProfile } from "~~/components/profile/ProfileContext";
 
 const profileSnapshot = (profile: ProfileSettings) => JSON.stringify(profile);
 
 export default function ProfilePage() {
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const profile = useProfile();
   const [draft, setDraft] = useState<ProfileSettings>({
     profileName: profile.profileName,
@@ -77,6 +81,72 @@ export default function ProfilePage() {
     if (draft.receivePositionNotifications) return "Open-position alerts are enabled.";
     return "Notifications are currently muted.";
   }, [draft.receivePositionNotifications, draft.receiveUpdates]);
+
+  if (!isConnected) {
+    return (
+      <section className="px-6 py-6">
+        <div className="mx-auto max-w-6xl">
+          <header className="mb-6">
+            <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Profile</h1>
+            <p className="mt-2 max-w-2xl text-sm text-[#525252] dark:text-[#A1A1A1]">
+              Profile information is wallet-specific. Connect your wallet to load or edit your account.
+            </p>
+          </header>
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="rounded-lg border border-[#E5E5E5] bg-white p-5 dark:border-[#1F1F1F] dark:bg-[#141414]">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FFD60A] text-[#0A0A0A]">
+                  <UserRound size={19} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Personal Info</h2>
+                  <p className="text-xs text-[#525252] dark:text-[#A1A1A1]">No wallet profile loaded.</p>
+                </div>
+              </div>
+
+              <div className="space-y-5 opacity-70">
+                <div>
+                  <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Profile Picture</span>
+                  <div className="mt-2 flex h-24 w-24 items-center justify-center rounded-full border border-dashed border-[#CBD5E1] bg-[#F8FAFC] text-[#525252] dark:border-[#334155] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
+                    <ImageIcon size={22} />
+                  </div>
+                </div>
+                <input
+                  readOnly
+                  placeholder="Choose a username"
+                  className="h-11 w-full rounded-md border border-[#E5E5E5] bg-white px-4 text-sm text-[#0A0A0A] outline-none dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
+                />
+                <input
+                  readOnly
+                  placeholder="you@example.com"
+                  className="h-11 w-full rounded-md border border-[#E5E5E5] bg-white px-4 text-sm text-[#0A0A0A] outline-none dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => openConnectModal?.()}
+                className="smooth-action mt-6 h-11 rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
+              >
+                Connect Wallet
+              </button>
+            </div>
+
+            <aside className="rounded-lg border border-[#E5E5E5] bg-white p-5 dark:border-[#1F1F1F] dark:bg-[#141414]">
+              <div className="flex items-center gap-3">
+                <Bell size={18} className="text-[#FFD60A]" />
+                <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Notification Mode</h2>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
+                Connect your wallet to configure wallet-profile notification preferences.
+              </p>
+            </aside>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="px-6 py-6">

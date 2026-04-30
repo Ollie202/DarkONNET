@@ -31,6 +31,8 @@ export const Sidebar = () => {
         }`}
         aria-label="primary navigation"
       >
+        <div className="h-14 shrink-0 border-b border-[#E5E5E5] dark:border-[#1F1F1F]" />
+
         <nav className="flex-1 py-4">
           <ul className="space-y-1 px-2">
             {navItems.map(item => {
