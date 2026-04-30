@@ -49,7 +49,7 @@ export const Sidebar = () => {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-md px-3 h-10 text-sm transition-colors ${
+                  className={`smooth-action flex items-center gap-3 rounded-md px-3 h-10 text-sm ${
                     active
                       ? "bg-[#F4F4F5] dark:bg-[#1F1F1F] text-[#0A0A0A] dark:text-[#FFD60A]"
                       : "text-[#525252] dark:text-[#A1A1A1] hover:bg-[#F4F4F5] dark:hover:bg-[#141414] hover:text-[#0A0A0A] dark:hover:text-[#FAFAFA]"
@@ -66,7 +66,7 @@ export const Sidebar = () => {
         <div className="mt-3 px-2">
           <Link
             href="/create-market"
-            className={`flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 hover:shadow-md active:translate-y-0 ${
+            className={`smooth-action flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90 ${
               createActive ? "bg-[#FFD60A]" : "bg-[#FFD60A]/85"
             } ${isCollapsed ? "px-0" : "px-3"}`}
             title={isCollapsed ? "Create Market" : undefined}

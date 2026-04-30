@@ -178,3 +178,9 @@
 .link:hover {
   opacity: 80%;
 }
+
+@layer utilities {
+  .smooth-action {
+    @apply transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:shadow-[0_12px_24px_-14px_rgba(10,10,10,0.55)] active:translate-y-0 active:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none dark:hover:shadow-[0_12px_24px_-14px_rgba(255,214,10,0.35)];
+  }
+}

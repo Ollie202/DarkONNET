@@ -15,7 +15,7 @@ export const NotificationsMenu = () => {
     <details ref={dropdownRef} className="dropdown dropdown-end relative z-[100]">
       <summary
         aria-label="notifications"
-        className="relative inline-flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md text-[#525252] transition-colors hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+        className="smooth-action relative inline-flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md text-[#525252] hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
       >
         <Bell size={18} />
         {unreadCount > 0 && (
@@ -35,7 +35,7 @@ export const NotificationsMenu = () => {
               key={notification.id}
               type="button"
               onClick={() => markAsRead(notification.id)}
-              className={`flex w-full gap-3 border-b border-[#E5E5E5] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-[#F8FAFC] dark:border-[#1F1F1F] dark:hover:bg-[#0A0A0A] ${
+              className={`smooth-action flex w-full gap-3 border-b border-[#E5E5E5] px-4 py-3 text-left last:border-b-0 hover:bg-[#F8FAFC] dark:border-[#1F1F1F] dark:hover:bg-[#0A0A0A] ${
                 notification.read ? "opacity-55" : ""
               }`}
             >

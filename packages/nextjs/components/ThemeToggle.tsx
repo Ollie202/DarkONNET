@@ -34,7 +34,7 @@ export const ThemeToggle = () => {
       type="button"
       onClick={toggleTheme}
       aria-label="toggle theme"
-      className="inline-flex items-center justify-center h-9 w-9 rounded-md text-[#525252] dark:text-[#A1A1A1] hover:bg-[#F4F4F5] dark:hover:bg-[#141414] hover:text-[#0A0A0A] dark:hover:text-[#FFD60A] transition-colors"
+      className="smooth-action inline-flex items-center justify-center h-9 w-9 rounded-md text-[#525252] dark:text-[#A1A1A1] hover:bg-[#F4F4F5] dark:hover:bg-[#141414] hover:text-[#0A0A0A] dark:hover:text-[#FFD60A]"
     >
       {mounted ? isDark ? <Moon size={18} /> : <Sun size={18} /> : <Moon size={18} />}
     </button>

@@ -5,7 +5,7 @@ import { RainbowKitCustomConnectButton } from "~~/components/helper/RainbowKitCu
 import { useFHECounterWagmi } from "~~/hooks/fhecounter-example/useFHECounterWagmi";
 
 const buttonBase =
-  "inline-flex items-center justify-center px-5 py-2.5 font-medium rounded-[0.5rem] transition-colors " +
+  "smooth-action inline-flex items-center justify-center px-5 py-2.5 font-medium rounded-[0.5rem] " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2 " +
   "focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#0A0A0A] " +
   "disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed";

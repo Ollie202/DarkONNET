@@ -257,7 +257,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
         <div className="min-w-0 lg:overflow-y-auto lg:pr-2">
           <Link
             href="/"
-            className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-[#525252] transition-colors hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+            className="smooth-action mb-4 inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-[#525252] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
           >
             <ArrowLeft size={16} />
             Back To Markets
@@ -340,10 +340,10 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                       <button
                         key={sort}
                         onClick={() => setCommentSort(sort)}
-                        className={`h-7 rounded px-3 ${
+                        className={`smooth-action h-7 rounded px-3 ${
                           commentSort === sort
                             ? "bg-[#FFD60A] text-[#0A0A0A]"
-                            : "text-[#525252] transition-colors hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
+                            : "text-[#525252] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
                         }`}
                         type="button"
                       >
@@ -370,7 +370,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                           type="button"
                           onClick={addComment}
                           disabled={!commentDraft.trim()}
-                          className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                          className="smooth-action inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
                         >
                           <MessageCircle size={15} />
                           Comment
@@ -415,7 +415,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                                     setExpandedThreads(prev => ({ ...prev, [comment.id]: true }));
                                   }
                                 }}
-                                className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+                                className="smooth-action inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
                               >
                                 <MessageCircle size={13} />
                                 Reply
@@ -424,7 +424,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                                 <button
                                   type="button"
                                   onClick={() => setExpandedThreads(prev => ({ ...prev, [comment.id]: !isExpanded }))}
-                                  className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+                                  className="smooth-action inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
                                   aria-expanded={isExpanded}
                                 >
                                   <ChevronDown
@@ -440,7 +440,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                             type="button"
                             onClick={() => toggleLike(comment.id)}
                             aria-pressed={comment.liked}
-                            className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-semibold transition-colors ${
+                            className={`smooth-action inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-semibold ${
                               comment.liked
                                 ? "border-[#FFD60A]/70 bg-[#FFD60A]/15 text-[#0A0A0A] dark:text-[#FFD60A]"
                                 : "border-[#E5E5E5] text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
@@ -465,7 +465,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                               type="button"
                               onClick={() => addReply(comment.id)}
                               disabled={!replyDrafts[comment.id]?.trim()}
-                              className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                              className="smooth-action h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
                             >
                               Send
                             </button>
@@ -497,7 +497,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                                     <button
                                       type="button"
                                       onClick={() => setReplyingTo(replyingTo === reply.id ? null : reply.id)}
-                                      className="mt-3 inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] transition-colors hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+                                      className="smooth-action mt-3 inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-semibold text-[#525252] hover:bg-white hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
                                     >
                                       <MessageCircle size={13} />
                                       Reply
@@ -507,7 +507,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                                     type="button"
                                     onClick={() => toggleLike(reply.id)}
                                     aria-pressed={reply.liked}
-                                    className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-semibold transition-colors ${
+                                    className={`smooth-action inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-semibold ${
                                       reply.liked
                                         ? "border-[#FFD60A]/70 bg-[#FFD60A]/15 text-[#0A0A0A] dark:text-[#FFD60A]"
                                         : "border-[#E5E5E5] text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
@@ -533,7 +533,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                                   type="button"
                                   onClick={() => addReply(replyTarget.id)}
                                   disabled={!replyDraft.trim()}
-                                  className="h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                                  className="smooth-action h-10 cursor-pointer rounded-md bg-[#FFD60A] px-3 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
                                 >
                                   Send
                                 </button>
@@ -566,7 +566,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <button
                 type="button"
                 onClick={() => setSelectedSide("yes")}
-                className={`h-11 cursor-pointer rounded-md border px-3 text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
+                className={`smooth-action h-11 cursor-pointer rounded-md border px-3 text-sm font-semibold ${
                   selectedSide === "yes"
                     ? "border-[#16A34A] bg-[#16A34A] text-white"
                     : "border-[#16A34A]/30 bg-[#16A34A]/5 text-[#16A34A] hover:bg-[#16A34A]/10 dark:text-[#22C55E]"
@@ -577,7 +577,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <button
                 type="button"
                 onClick={() => setSelectedSide("no")}
-                className={`h-11 cursor-pointer rounded-md border px-3 text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
+                className={`smooth-action h-11 cursor-pointer rounded-md border px-3 text-sm font-semibold ${
                   selectedSide === "no"
                     ? "border-[#DC2626] bg-[#DC2626] text-white"
                     : "border-[#DC2626]/30 bg-[#DC2626]/5 text-[#DC2626] hover:bg-[#DC2626]/10 dark:text-[#EF4444]"
@@ -620,7 +620,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                         setAmount("");
                         setAmountMode(mode);
                       }}
-                      className={`h-7 cursor-pointer rounded px-3 transition-colors ${
+                      className={`smooth-action h-7 cursor-pointer rounded px-3 ${
                         amountMode === mode
                           ? "bg-[#FFD60A] text-[#0A0A0A]"
                           : "text-[#525252] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
@@ -637,7 +637,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                     key={preset}
                     type="button"
                     onClick={() => setAmount(String(preset))}
-                    className="h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] transition-colors hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                    className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                   >
                     {amountMode === "usd" ? `$${preset}` : `${preset} ${selectedTokenInfo.symbol}`}
                   </button>
@@ -651,7 +651,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                         : String(selectedTokenInfo.balance),
                     )
                   }
-                  className="h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] transition-colors hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                  className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                 >
                   Max
                 </button>
@@ -692,7 +692,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             <button
               type="button"
               disabled={!selectedSide || !amount || hasInsufficientBalance}
-              className="mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+              className="smooth-action mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
             >
               <ShieldCheck size={17} />
               Review Encrypted Bet

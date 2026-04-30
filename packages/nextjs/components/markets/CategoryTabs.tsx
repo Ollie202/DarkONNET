@@ -42,7 +42,7 @@ export const CategoryTabs = ({ active, onChange }: CategoryTabsProps) => {
             <button
               type="button"
               onClick={() => onChange(tab.id)}
-              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
+              className={`smooth-action inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${
                 isActive
                   ? "bg-[#0A0A0A] text-white dark:bg-[#FAFAFA] dark:text-[#0A0A0A]"
                   : "text-[#525252] dark:text-[#A1A1A1] hover:text-[#0A0A0A] dark:hover:text-[#FAFAFA] hover:bg-[#F4F4F5] dark:hover:bg-[#141414]"

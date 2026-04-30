@@ -7,7 +7,7 @@ export const WrongNetworkDropdown = () => {
 
   return (
     <div className="dropdown dropdown-end mr-2">
-      <label tabIndex={0} className="btn btn-error btn-sm dropdown-toggle gap-1">
+      <label tabIndex={0} className="smooth-action btn btn-error btn-sm dropdown-toggle gap-1">
         <span>Wrong network</span>
         <ChevronDownIcon className="h-6 w-4 ml-2 sm:ml-0" />
       </label>
@@ -18,7 +18,7 @@ export const WrongNetworkDropdown = () => {
         <NetworkOptions />
         <li>
           <button
-            className="menu-item text-error btn-sm rounded-xl! flex gap-3 py-3"
+            className="smooth-action menu-item text-error btn-sm rounded-xl! flex gap-3 py-3"
             type="button"
             onClick={() => disconnect()}
           >

@@ -77,7 +77,7 @@ export default function CreateMarketPage() {
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Cover Image</span>
               <button
                 type="button"
-                className="mt-2 flex h-11 cursor-pointer items-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#FFD60A]/70 hover:shadow-md dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
+                className="smooth-action mt-2 flex h-11 cursor-pointer items-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-semibold text-[#0A0A0A] hover:border-[#FFD60A]/70 dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
               >
                 <ImageIcon size={17} />
                 Upload
@@ -88,7 +88,7 @@ export default function CreateMarketPage() {
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Sources</span>
               <button
                 type="button"
-                className="mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#FFD60A]/70 hover:shadow-md dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
+                className="smooth-action mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-3 rounded-md border border-[#CBD5E1] bg-white px-4 text-sm font-semibold text-[#0A0A0A] hover:border-[#FFD60A]/70 dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
               >
                 <Plus size={18} />
                 Add More Source
@@ -109,7 +109,7 @@ export default function CreateMarketPage() {
                         type="button"
                         aria-label={item.label}
                         title={item.label}
-                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[#525252] transition-colors hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
+                        className="smooth-action flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[#525252] hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A]"
                       >
                         <Icon size={16} />
                       </button>
@@ -179,13 +179,13 @@ export default function CreateMarketPage() {
             <div className="flex flex-col gap-3 border-t border-[#E5E5E5] pt-5 dark:border-[#1F1F1F] sm:flex-row sm:justify-end">
               <button
                 type="button"
-                className="h-11 cursor-pointer rounded-md border border-[#CBD5E1] px-5 text-sm font-semibold text-[#525252] transition-colors hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:border-[#334155] dark:text-[#A1A1A1] dark:hover:bg-[#0A0A0A] dark:hover:text-[#FAFAFA]"
+                className="smooth-action h-11 cursor-pointer rounded-md border border-[#CBD5E1] px-5 text-sm font-semibold text-[#525252] hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:border-[#334155] dark:text-[#A1A1A1] dark:hover:bg-[#0A0A0A] dark:hover:text-[#FAFAFA]"
               >
                 Save Draft
               </button>
               <button
                 type="button"
-                className="h-11 cursor-pointer rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90 hover:shadow-md active:translate-y-0"
+                className="smooth-action h-11 cursor-pointer rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
               >
                 Submit Market
               </button>

@@ -38,7 +38,7 @@ export const RainbowKitCustomConnectButton = () => {
         if (!connected) {
           return (
             <button
-              className="h-9 cursor-pointer rounded-md border-none bg-[#FFD208] px-3 text-sm font-semibold text-gray-900"
+              className="smooth-action h-9 cursor-pointer rounded-md border-none bg-[#FFD208] px-3 text-sm font-semibold text-gray-900"
               onClick={openConnectModal}
               type="button"
             >
@@ -57,7 +57,7 @@ export const RainbowKitCustomConnectButton = () => {
 
         return (
           <details ref={dropdownRef} className="dropdown dropdown-end relative z-[100]">
-            <summary className="flex h-9 max-w-[13rem] cursor-pointer list-none items-center gap-2 rounded-md border border-[#E5E5E5] bg-[#F4F4F5] px-2 text-sm font-semibold text-[#0A0A0A] shadow-sm transition-colors hover:border-[#FFD60A]/60 dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]">
+            <summary className="smooth-action flex h-9 max-w-[13rem] cursor-pointer list-none items-center gap-2 rounded-md border border-[#E5E5E5] bg-[#F4F4F5] px-2 text-sm font-semibold text-[#0A0A0A] shadow-sm hover:border-[#FFD60A]/60 dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]">
               <BlockieAvatar address={checkSumAddress} size={24} ensImage={account.ensAvatar} />
               <span className="hidden max-w-32 truncate sm:block">{displayName}</span>
               <ChevronDown size={15} className="text-[#525252] dark:text-[#A1A1A1]" />
@@ -104,7 +104,7 @@ export const RainbowKitCustomConnectButton = () => {
                   <button
                     type="button"
                     onClick={() => setProfileName(draftName)}
-                    className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#FFD60A]/90"
+                    className="smooth-action flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
                   >
                     <Save size={15} />
                     Save
@@ -115,7 +115,7 @@ export const RainbowKitCustomConnectButton = () => {
                       clearProfileName();
                       setDraftName("");
                     }}
-                    className="h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] transition-colors hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
+                    className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
                   >
                     Use Address
                   </button>
@@ -124,7 +124,7 @@ export const RainbowKitCustomConnectButton = () => {
                 <button
                   type="button"
                   onClick={() => disconnect()}
-                  className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-[#DC2626]/30 text-sm font-semibold text-[#DC2626] transition-colors hover:bg-[#DC2626]/10 dark:text-[#EF4444]"
+                  className="smooth-action flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-[#DC2626]/30 text-sm font-semibold text-[#DC2626] hover:bg-[#DC2626]/10 dark:text-[#EF4444]"
                 >
                   <LogOut size={15} />
                   Disconnect
