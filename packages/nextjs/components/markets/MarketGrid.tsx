@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { type CategoryFilter, CategoryTabs } from "~~/components/markets/CategoryTabs";
 import { MarketCard } from "~~/components/markets/MarketCard";
-import { getAllMarkets, getCreatorMarkets } from "~~/lib/localMarkets";
+import { useProfile } from "~~/components/profile/ProfileContext";
+import { getAllMarkets, getCreatorMarkets, getMyCreatorMarkets } from "~~/lib/localMarkets";
 import { type Market } from "~~/lib/mockMarkets";
 
 type MarketGridProps = {
@@ -13,12 +14,22 @@ type MarketGridProps = {
 };
 
 export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
+  const { profileName, walletAddress } = useProfile();
   const [filter, setFilter] = useState<CategoryFilter>(source === "creator" ? "all" : "trending");
+  const [creatorTab, setCreatorTab] = useState<"all" | "mine">("all");
   const [markets, setMarkets] = useState<Market[]>([]);
   const isCreatorMarketView = source === "creator";
+  const creatorKey = walletAddress || profileName;
 
   useEffect(() => {
-    const syncMarkets = () => setMarkets(isCreatorMarketView ? getCreatorMarkets() : getAllMarkets());
+    const syncMarkets = () =>
+      setMarkets(
+        isCreatorMarketView
+          ? creatorTab === "mine"
+            ? getMyCreatorMarkets(creatorKey)
+            : getCreatorMarkets()
+          : getAllMarkets(),
+      );
 
     syncMarkets();
     window.addEventListener("local-markets-updated", syncMarkets);
@@ -28,7 +39,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
       window.removeEventListener("local-markets-updated", syncMarkets);
       window.removeEventListener("storage", syncMarkets);
     };
-  }, [isCreatorMarketView]);
+  }, [creatorKey, creatorTab, isCreatorMarketView]);
 
   const visible = useMemo(() => {
     if (filter === "all") return markets;
@@ -60,6 +71,28 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
         )}
       </header>
 
+      {isCreatorMarketView && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {[
+            { id: "all" as const, label: "Creator Markets" },
+            { id: "mine" as const, label: "My Markets" },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setCreatorTab(tab.id)}
+              className={`smooth-action h-10 rounded-md px-4 text-sm font-semibold ${
+                creatorTab === tab.id
+                  ? "bg-[#FFD60A] text-[#0A0A0A]"
+                  : "border border-[#E5E5E5] bg-white text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <CategoryTabs active={filter} onChange={setFilter} />
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-6">
@@ -70,7 +103,9 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
       {visible.length === 0 && (
         <div className="text-center py-16 text-sm text-[#525252] dark:text-[#A1A1A1]">
-          No markets in this category yet. Check back soon.
+          {creatorTab === "mine"
+            ? "You have not created any markets yet."
+            : "No markets in this category yet. Check back soon."}
         </div>
       )}
     </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bold,
@@ -16,6 +16,7 @@ import {
   Underline,
   X,
 } from "lucide-react";
+import { useProfile } from "~~/components/profile/ProfileContext";
 import {
   type CreateMarketDraft,
   clearCreateMarketDraft,
@@ -69,15 +70,22 @@ const FieldTooltip = ({ label }: { label: string }) => (
 
 export default function CreateMarketPage() {
   const router = useRouter();
+  const { profileName, walletAddress } = useProfile();
+  const creatorKey = walletAddress || profileName;
   const [draft, setDraft] = useState<CreateMarketDraft>(() =>
     typeof window === "undefined" ? emptyCreateMarketDraft : getCreateMarketDraft(),
   );
   const [formMessage, setFormMessage] = useState("");
+  const [submittedMarketId, setSubmittedMarketId] = useState("");
   const [cooldown, setCooldown] = useState(() =>
-    typeof window === "undefined" ? { canSubmit: true, remainingMs: 0 } : getMarketRequestCooldown(),
+    typeof window === "undefined" ? { canSubmit: true, remainingMs: 0 } : getMarketRequestCooldown(creatorKey),
   );
 
   const creatorStake = useMemo(() => Number(draft.creatorStake) || 0, [draft.creatorStake]);
+
+  useEffect(() => {
+    setCooldown(getMarketRequestCooldown(creatorKey));
+  }, [creatorKey]);
 
   const updateDraft = <Key extends keyof CreateMarketDraft>(key: Key, value: CreateMarketDraft[Key]) => {
     setFormMessage("");
@@ -123,7 +131,7 @@ export default function CreateMarketPage() {
   };
 
   const submitMarket = () => {
-    const nextCooldown = getMarketRequestCooldown();
+    const nextCooldown = getMarketRequestCooldown(creatorKey);
     setCooldown(nextCooldown);
 
     if (!nextCooldown.canSubmit) {
@@ -149,16 +157,42 @@ export default function CreateMarketPage() {
       return;
     }
 
-    const market = createMarketFromDraft(draft);
+    const market = createMarketFromDraft(draft, { creatorKey });
     saveLocalMarket(market);
-    setCooldown(getMarketRequestCooldown());
+    setCooldown(getMarketRequestCooldown(creatorKey));
     clearCreateMarketDraft();
     setDraft(emptyCreateMarketDraft);
-    router.push(`/markets/${market.id}`);
+    setSubmittedMarketId(market.id);
   };
 
   return (
     <section className="px-6 py-6">
+      {submittedMarketId && (
+        <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-lg border border-[#1F1F1F] bg-[#141414] p-5 shadow-[0_24px_80px_-40px_rgba(255,214,10,0.55)]">
+            <h2 className="text-xl font-semibold text-[#FAFAFA]">Market Request Submitted</h2>
+            <p className="mt-3 text-sm leading-6 text-[#A1A1A1]">
+              Your market has been submitted and will be reviewed by an admin in under 24 hours.
+            </p>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => router.push("/creator-markets")}
+                className="smooth-action h-10 rounded-md border border-[#334155] text-sm font-semibold text-[#FAFAFA] hover:border-[#FFD60A]/70"
+              >
+                View My Markets
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubmittedMarketId("")}
+                className="smooth-action h-10 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A]"
+              >
+                Create Another Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mx-auto max-w-5xl">
         <header className="mb-6">
           <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Create New Market</h1>

@@ -128,10 +128,6 @@ export default function ProfilePage() {
                       onChange={event => handleProfileImageUpload(event.target.files?.[0])}
                     />
                   </label>
-                  <div className="text-sm leading-6 text-[#525252] dark:text-[#A1A1A1]">
-                    Upload a profile picture from your phone or PC. It will show in comments and your wallet profile
-                    menu after saving.
-                  </div>
                 </div>
               </div>
 
@@ -195,6 +191,7 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={save}
+                    disabled={!draft.profileName.trim()}
                     className="smooth-action inline-flex h-11 cursor-pointer items-center gap-2 rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
                   >
                     <Check size={17} />

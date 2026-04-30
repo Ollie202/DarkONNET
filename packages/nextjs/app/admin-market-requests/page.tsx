@@ -248,6 +248,12 @@ export default function AdminMarketRequestsPage() {
                   >
                     {request.status === "open" ? "Accepted" : "Declined"}
                   </span>
+                  <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">
+                    Vol {request.encryptedVolumeLabel} / Yes {Math.round(request.yesProbability * 100)}%
+                  </span>
+                  {request.adminNote && (
+                    <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">Note: {request.adminNote}</span>
+                  )}
                 </div>
               ))}
             </div>

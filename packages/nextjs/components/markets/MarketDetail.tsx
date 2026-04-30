@@ -74,7 +74,7 @@ const sampleComments: MarketComment[] = [
   },
   {
     id: "comment-4",
-    author: "0x44...91cB",
+    author: "YieldMapper",
     createdAt: Date.now() - 28 * 60 * 1000,
     time: "28m ago",
     text: "Market is overreacting to headlines. The actual resolution criteria still looks hard to satisfy.",
@@ -83,7 +83,7 @@ const sampleComments: MarketComment[] = [
   },
   {
     id: "comment-5",
-    author: "0xA7...0e31",
+    author: "NorthStar",
     createdAt: Date.now() - 60 * 60 * 1000,
     time: "1h ago",
     text: "Good market, but the final source used for resolution needs to be very explicit.",
@@ -140,7 +140,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const creatorFee = market.status ? usdAmount * 0.01 : 0;
   const netUsdAmount = Math.max(0, usdAmount - creatorFee);
   const hasInsufficientBalance = tokenAmount > selectedTokenInfo.balance;
-  const currentProfileName = profileName || "New user";
+  const currentProfileName = profileName || "Username Required";
   const isMarketTradable = !market.status || market.status === "open";
   const cameFromAdmin = searchParams.get("from") === "admin";
   const backHref = cameFromAdmin ? "/admin-market-requests" : "/";
@@ -213,7 +213,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     const parentComment = comments.find(comment => comment.id === targetId);
     const parentAuthor = parentComment?.author ?? "someone";
     const parentId = parentComment?.parentId ?? targetId;
-    const replyAuthor = parentAuthor === currentProfileName ? "0x44...91cB" : currentProfileName;
+    const replyAuthor = currentProfileName;
 
     setComments(prev => [
       {
@@ -332,7 +332,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             </div>
 
             <div className="space-y-6 p-5 md:p-6">
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-4">
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
                   <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Current Yes</div>
                   <div className="mt-1 font-mono text-2xl font-semibold text-[#16A34A] dark:text-[#22C55E]">
@@ -352,15 +352,34 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                     {formatTimeRemaining(market.endsAt)}
                   </div>
                 </div>
+                <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
+                  <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Volume</div>
+                  <div className="mt-1 font-mono text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                    {market.encryptedVolumeLabel}
+                  </div>
+                </div>
               </div>
 
               <SentimentBar probability={probability} signals={market.sentimentSignals} />
 
               {market.status && (
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 text-sm leading-6 text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
-                  Creator markets route <span className="font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">1%</span> of
-                  each trade back to the creator wallet after execution. Odds move with trade flow once the market is
-                  approved.
+                  {market.status === "declined" ? (
+                    <>
+                      This market request was declined.
+                      {market.adminNote && (
+                        <span className="block font-semibold text-[#DC2626] dark:text-[#EF4444]">
+                          Admin note: {market.adminNote}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      Creator markets route <span className="font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">1%</span>{" "}
+                      of each trade back to the creator wallet after execution. Odds move with trade flow once the
+                      market is approved.
+                    </>
+                  )}
                 </div>
               )}
 

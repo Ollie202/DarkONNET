@@ -188,7 +188,7 @@ export default function PositionsPage() {
         </div>
 
         <div className="overflow-hidden rounded-lg border border-[#E5E5E5] bg-white dark:border-[#1F1F1F] dark:bg-[#141414]">
-          <div className="hidden grid-cols-[minmax(18rem,1fr)_6rem_7rem_6rem_7rem_8rem_9rem] items-center gap-3 border-b border-[#E5E5E5] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1] md:grid">
+          <div className="hidden grid-cols-[minmax(15rem,1fr)_4rem_5.5rem_4.5rem_5.5rem_7rem_7rem] items-center gap-2 border-b border-[#E5E5E5] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1] md:grid">
             <span>Market</span>
             <span className="text-center">Side</span>
             <span className="text-right">Stake</span>
@@ -202,7 +202,7 @@ export default function PositionsPage() {
             {visiblePositions.map(position => (
               <div
                 key={position.id}
-                className="grid gap-3 px-4 py-4 text-sm hover:bg-[#F8FAFC] dark:hover:bg-[#0A0A0A] md:grid-cols-[minmax(18rem,1fr)_6rem_7rem_6rem_7rem_8rem_9rem] md:items-center"
+                className="grid gap-3 px-4 py-4 text-sm hover:bg-[#F8FAFC] dark:hover:bg-[#0A0A0A] md:grid-cols-[minmax(15rem,1fr)_4rem_5.5rem_4.5rem_5.5rem_7rem_7rem] md:items-center md:gap-2"
               >
                 <span className="min-w-0">
                   <Link

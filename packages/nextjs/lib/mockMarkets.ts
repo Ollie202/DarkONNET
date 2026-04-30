@@ -26,6 +26,8 @@ export type Market = {
   sources?: string[];
   coverImageDataUrl?: string;
   creatorStake?: number;
+  creatorKey?: string;
+  adminNote?: string;
   token?: string;
   status?: "draft" | "pending" | "open" | "declined";
 };

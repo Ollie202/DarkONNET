@@ -98,6 +98,11 @@ export const MarketCard = ({ market }: { market: Market }) => {
               Creator
             </span>
           )}
+          {market.status === "declined" && (
+            <span className="rounded-md border border-[#DC2626]/30 px-2 py-0.5 text-[10px] tracking-wider text-[#DC2626] dark:text-[#EF4444]">
+              Declined
+            </span>
+          )}
           {market.trending && (
             <span className="inline-flex items-center gap-1 text-[10px] text-[#D97706] dark:text-[#F59E0B]">
               <Flame size={11} /> Trending

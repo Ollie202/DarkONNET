@@ -11,6 +11,7 @@ export type LocalMarket = Market & {
   coverImageName?: string;
   coverImageDataUrl?: string;
   creatorStake: number;
+  creatorKey?: string;
   token: string;
   adminNote?: string;
 };
@@ -30,6 +31,10 @@ export type CreateMarketDraft = {
   resolutionDate: string;
   creatorStake: string;
   token: string;
+};
+
+export type CreateMarketCreator = {
+  creatorKey?: string;
 };
 
 export const emptyCreateMarketDraft: CreateMarketDraft = {
@@ -74,8 +79,12 @@ export const getLocalMarkets = () =>
 
 export const getAllMarkets = () => mockMarkets;
 
-export const getCreatorMarkets = () =>
-  getLocalMarkets().filter(market => market.status === "open" || market.status === "pending");
+export const getCreatorMarkets = () => getLocalMarkets().filter(market => market.status === "open");
+
+export const getMyCreatorMarkets = (creatorKey?: string) => {
+  if (!creatorKey) return [];
+  return getLocalMarkets().filter(market => market.creatorKey === creatorKey);
+};
 
 export const getLocalMarketById = (id: string) => getLocalMarkets().find(market => market.id === id);
 
@@ -120,9 +129,9 @@ export const recordLocalMarketTrade = (marketId: string, side: "yes" | "no", usd
   window.dispatchEvent(new Event("local-markets-updated"));
 };
 
-export const getMarketRequestCooldown = () => {
+export const getMarketRequestCooldown = (creatorKey?: string) => {
   const latestRequestTime = getLocalMarkets()
-    .filter(market => market.status !== "draft")
+    .filter(market => market.status !== "draft" && (!creatorKey || market.creatorKey === creatorKey))
     .map(market => new Date(market.createdAt).getTime())
     .filter(Number.isFinite)
     .sort((a, b) => b - a)[0];
@@ -146,7 +155,7 @@ export const clearCreateMarketDraft = () => {
   window.localStorage.removeItem(DRAFT_KEY);
 };
 
-export const createMarketFromDraft = (draft: CreateMarketDraft): LocalMarket => {
+export const createMarketFromDraft = (draft: CreateMarketDraft, creator: CreateMarketCreator = {}): LocalMarket => {
   const cleanSources = draft.sources.map(source => source.trim()).filter(Boolean);
   const createdAt = new Date().toISOString();
   const idBase = slugify(draft.question) || "custom-market";
@@ -167,6 +176,7 @@ export const createMarketFromDraft = (draft: CreateMarketDraft): LocalMarket => 
     coverImageName: draft.coverImageName,
     coverImageDataUrl: draft.coverImageDataUrl,
     creatorStake: Math.max(1, Number(draft.creatorStake) || 1),
+    creatorKey: creator.creatorKey,
     token: draft.token,
   };
 };
