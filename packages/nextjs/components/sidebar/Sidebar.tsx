@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, LayoutGrid, Plus, Store, User } from "lucide-react";
@@ -31,14 +32,21 @@ export const Sidebar = () => {
         }`}
         aria-label="primary navigation"
       >
-        <div className="flex h-14 items-center border-b border-[#E5E5E5] px-4 dark:border-[#1F1F1F]">
-          {!isCollapsed ? (
-            <span className="text-sm font-semibold tracking-tight text-[#0A0A0A] dark:text-[#FAFAFA]">
-              Zama <span className="text-[#FFD60A]">Predict</span>
-            </span>
-          ) : (
-            <span className="mx-auto h-2 w-2 rounded-full bg-[#FFD60A]" />
-          )}
+        <div className="flex h-14 items-center border-b border-[#E5E5E5] px-3 dark:border-[#1F1F1F]">
+          <Link
+            href="/"
+            aria-label="Go to DarkONNET home"
+            className={`smooth-action flex min-w-0 items-center rounded-md hover:bg-[#F4F4F5] dark:hover:bg-[#141414] ${
+              isCollapsed ? "mx-auto h-10 w-10 justify-center" : "h-10 w-full gap-2 px-2"
+            }`}
+          >
+            <Image src="/darkonnet-hornet.svg" alt="" width={32} height={32} className="shrink-0 rounded-md" />
+            {!isCollapsed && (
+              <span className="truncate text-sm font-semibold tracking-tight text-[#0A0A0A] dark:text-[#FAFAFA]">
+                Dark<span className="text-[#A37500] dark:text-[#FFD60A]">ONNET</span>
+              </span>
+            )}
+          </Link>
         </div>
 
         <nav className="flex-1 py-4">

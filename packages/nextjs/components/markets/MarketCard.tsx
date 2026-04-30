@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Clock, Flame, Lock } from "lucide-react";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
-import { type Market, formatTimeRemaining } from "~~/lib/mockMarkets";
+import { type Market, formatMarketVolume, formatTimeRemaining } from "~~/lib/mockMarkets";
 
 const categoryStyles: Record<Market["category"], string> = {
   crypto: "text-[#A37500] dark:text-[#FFD60A] border-[#FFD60A]/40",
@@ -142,7 +142,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
 
       <footer className="pointer-events-none relative z-20 flex items-center justify-between border-t border-[#E5E5E5] pt-3 text-[11px] text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]">
         <span className="inline-flex items-center gap-1">
-          <Lock size={11} /> Volume {market.encryptedVolumeLabel}
+          <Lock size={11} /> Volume {formatMarketVolume(market)}
         </span>
         <span className="font-mono">{market.status ? "Fee 1%" : `ID ${market.id.slice(0, 6)}`}</span>
       </footer>

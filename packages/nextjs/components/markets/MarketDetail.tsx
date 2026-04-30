@@ -10,10 +10,9 @@ import { useNotifications } from "~~/components/notifications/NotificationsConte
 import { useProfile } from "~~/components/profile/ProfileContext";
 import { recordLocalMarketTrade } from "~~/lib/localMarkets";
 import { saveLocalPosition } from "~~/lib/localPositions";
-import { type Market, formatTimeRemaining } from "~~/lib/mockMarkets";
+import { type Market, formatMarketVolume, formatTimeRemaining } from "~~/lib/mockMarkets";
 
 type SelectedSide = "yes" | "no" | null;
-type AmountMode = "token" | "usd";
 type CommentSort = "top" | "new";
 
 type MarketComment = {
@@ -33,12 +32,7 @@ type MarketDetailProps = {
 };
 
 const presetAmounts = [1, 5, 10, 20, 50];
-
-const walletTokens = [
-  { symbol: "ETH", label: "Sepolia ETH", balance: 0.42, usdPrice: 3380 },
-  { symbol: "USDC", label: "Mock USDC", balance: 250, usdPrice: 1 },
-  { symbol: "ZAMA", label: "Test ZAMA", balance: 1000, usdPrice: 0.12 },
-];
+const CUSDT_BALANCE = 5000;
 
 const sampleComments: MarketComment[] = [
   {
@@ -122,8 +116,6 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [selectedSide, setSelectedSide] = useState<SelectedSide>(
     initialSide === "yes" || initialSide === "no" ? initialSide : null,
   );
-  const [selectedToken, setSelectedToken] = useState(walletTokens[0].symbol);
-  const [amountMode, setAmountMode] = useState<AmountMode>("usd");
   const [amount, setAmount] = useState("");
   const [betMessage, setBetMessage] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
@@ -133,13 +125,11 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const imageUrl = market.coverImageDataUrl ?? marketImages[market.id] ?? fallbackImages[market.category];
-  const selectedTokenInfo = walletTokens.find(token => token.symbol === selectedToken) ?? walletTokens[0];
   const parsedAmount = Number(amount);
-  const tokenAmount = amountMode === "token" ? parsedAmount || 0 : (parsedAmount || 0) / selectedTokenInfo.usdPrice;
-  const usdAmount = amountMode === "usd" ? parsedAmount || 0 : (parsedAmount || 0) * selectedTokenInfo.usdPrice;
-  const creatorFee = market.status ? usdAmount * 0.01 : 0;
-  const netUsdAmount = Math.max(0, usdAmount - creatorFee);
-  const hasInsufficientBalance = tokenAmount > selectedTokenInfo.balance;
+  const cUsdtAmount = parsedAmount || 0;
+  const creatorFee = market.status ? cUsdtAmount * 0.01 : 0;
+  const netCUsdtAmount = Math.max(0, cUsdtAmount - creatorFee);
+  const hasInsufficientBalance = cUsdtAmount > CUSDT_BALANCE;
   const currentProfileName = profileName || "Username Required";
   const isMarketTradable = !market.status || market.status === "open";
   const cameFromAdmin = searchParams.get("from") === "admin";
@@ -152,18 +142,15 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   }, [searchParams]);
 
   const estimatedShares = useMemo(() => {
-    if (!netUsdAmount || !selectedSide || hasInsufficientBalance) return "0.00";
+    if (!netCUsdtAmount || !selectedSide || hasInsufficientBalance) return "0.00";
     const price = selectedSide === "yes" ? probability : 1 - probability;
-    return (netUsdAmount / Math.max(price, 0.01)).toFixed(2);
-  }, [hasInsufficientBalance, netUsdAmount, probability, selectedSide]);
+    return (netCUsdtAmount / Math.max(price, 0.01)).toFixed(2);
+  }, [hasInsufficientBalance, netCUsdtAmount, probability, selectedSide]);
 
-  const formatTokenBalance = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  const formatUsd = (value: number) =>
-    value.toLocaleString(undefined, {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: value >= 1 ? 2 : 4,
-    });
+  const formatCUsdt = (value: number) =>
+    `${value.toLocaleString(undefined, { maximumFractionDigits: value >= 1 ? 2 : 4 })} cUSDT`;
+  const formatUsdEquivalent = (value: number) =>
+    `$${value.toLocaleString(undefined, { maximumFractionDigits: value >= 1 ? 2 : 4 })}`;
 
   const topLevelComments = useMemo(() => {
     return comments.filter(comment => !comment.parentId);
@@ -267,23 +254,23 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const reviewBet = () => {
     if (!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance) return;
 
-    const creatorFeeLabel = formatUsd(creatorFee);
+    const creatorFeeLabel = formatCUsdt(creatorFee);
     saveLocalPosition({
       id: `position-${Date.now()}`,
       marketId: market.id,
       market: market.question,
       status: "open",
       side: selectedSide === "yes" ? "Yes" : "No",
-      stake: formatUsd(usdAmount),
+      stake: formatCUsdt(cUsdtAmount),
       entry: `${selectedSide === "yes" ? yesPct : noPct}%`,
       current: `${selectedSide === "yes" ? yesPct : noPct}%`,
       pnl: 0,
       creatorFee: creatorFeeLabel,
-      netStake: formatUsd(netUsdAmount),
+      netStake: formatCUsdt(netCUsdtAmount),
       href: `/markets/${market.id}`,
       createdAt: new Date().toISOString(),
     });
-    recordLocalMarketTrade(market.id, selectedSide, usdAmount);
+    recordLocalMarketTrade(market.id, selectedSide, cUsdtAmount);
     setBetMessage(
       market.status
         ? `Position added. ${creatorFeeLabel} creator fee routes back to the creator wallet.`
@@ -355,7 +342,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
                   <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Volume</div>
                   <div className="mt-1 font-mono text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                    {market.encryptedVolumeLabel}
+                    {formatMarketVolume(market)}
                   </div>
                 </div>
               </div>
@@ -700,47 +687,22 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
             <label className="mt-5 block">
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Token From Wallet</span>
-              <select
-                value={selectedToken}
-                onChange={event => setSelectedToken(event.target.value)}
-                className="mt-2 h-11 w-full cursor-pointer rounded-md border border-[#E5E5E5] bg-white px-3 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]"
-              >
-                {walletTokens.map(token => (
-                  <option key={token.symbol} value={token.symbol}>
-                    {token.label}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-2 flex h-11 items-center justify-between rounded-md border border-[#E5E5E5] bg-white px-3 text-sm font-semibold text-[#0A0A0A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]">
+                <span>cUSDT on Sepolia</span>
+                <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">Only currency</span>
+              </div>
               <span className="mt-2 flex justify-between text-xs text-[#525252] dark:text-[#A1A1A1]">
-                <span>
-                  Balance {formatTokenBalance(selectedTokenInfo.balance)} {selectedTokenInfo.symbol}
-                </span>
-                <span>{formatUsd(selectedTokenInfo.balance * selectedTokenInfo.usdPrice)}</span>
+                <span>Balance {formatCUsdt(CUSDT_BALANCE)}</span>
+                <span>{formatUsdEquivalent(CUSDT_BALANCE)}</span>
               </span>
             </label>
 
             <div className="mt-5">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Amount</span>
-                <div className="grid grid-cols-2 rounded-md border border-[#E5E5E5] p-0.5 text-xs font-semibold dark:border-[#1F1F1F]">
-                  {(["usd", "token"] as AmountMode[]).map(mode => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        setAmount("");
-                        setAmountMode(mode);
-                      }}
-                      className={`smooth-action h-7 cursor-pointer rounded px-3 ${
-                        amountMode === mode
-                          ? "bg-[#FFD60A] text-[#0A0A0A]"
-                          : "text-[#525252] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
-                      }`}
-                    >
-                      {mode === "usd" ? "USD" : selectedTokenInfo.symbol}
-                    </button>
-                  ))}
-                </div>
+                <span className="rounded-md border border-[#E5E5E5] px-2 py-1 text-xs font-semibold text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]">
+                  cUSDT
+                </span>
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {presetAmounts.map(preset => (
@@ -750,18 +712,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                     onClick={() => addPresetAmount(preset)}
                     className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                   >
-                    {amountMode === "usd" ? `$${preset}` : `${preset} ${selectedTokenInfo.symbol}`}
+                    {preset} cUSDT
                   </button>
                 ))}
                 <button
                   type="button"
-                  onClick={() =>
-                    setAmount(
-                      amountMode === "usd"
-                        ? String((selectedTokenInfo.balance * selectedTokenInfo.usdPrice).toFixed(2))
-                        : String(selectedTokenInfo.balance),
-                    )
-                  }
+                  onClick={() => setAmount(String(CUSDT_BALANCE))}
                   className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                 >
                   Max
@@ -772,17 +728,13 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 min="0"
                 value={amount}
                 onChange={event => setAmount(event.target.value)}
-                placeholder={amountMode === "usd" ? "Enter USD amount" : `Enter ${selectedTokenInfo.symbol} amount`}
+                placeholder="Enter cUSDT amount"
                 className={`mt-3 h-12 w-full rounded-md border bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:bg-[#0A0A0A] dark:text-[#FAFAFA] ${
                   hasInsufficientBalance ? "border-[#DC2626]" : "border-[#E5E5E5] dark:border-[#1F1F1F]"
                 }`}
               />
               <div className="mt-2 flex justify-between text-xs">
-                <span className="text-[#525252] dark:text-[#A1A1A1]">
-                  {amountMode === "usd"
-                    ? `${formatTokenBalance(tokenAmount)} ${selectedTokenInfo.symbol}`
-                    : formatUsd(usdAmount)}
-                </span>
+                <span className="text-[#525252] dark:text-[#A1A1A1]">≈ {formatUsdEquivalent(cUsdtAmount)}</span>
                 {hasInsufficientBalance && <span className="font-semibold text-[#DC2626]">Insufficient Balance</span>}
               </div>
             </div>
@@ -801,7 +753,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               {market.status && (
                 <div className="mt-2 flex justify-between text-[#525252] dark:text-[#A1A1A1]">
                   <span>Creator Fee 1%</span>
-                  <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{formatUsd(creatorFee)}</span>
+                  <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{formatCUsdt(creatorFee)}</span>
                 </div>
               )}
             </div>

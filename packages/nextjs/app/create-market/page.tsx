@@ -153,7 +153,7 @@ export default function CreateMarketPage() {
     }
 
     if (creatorStake < 1) {
-      setFormMessage("Add at least $1 from your wallet to submit a market creation request.");
+      setFormMessage("Add at least 1 cUSDT from your wallet to submit a market creation request.");
       return;
     }
 
@@ -197,7 +197,7 @@ export default function CreateMarketPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Create New Market</h1>
           <p className="mt-2 max-w-2xl text-sm text-[#525252] dark:text-[#A1A1A1]">
-            Draft a market with clear rules, credible sources, resolution timing, and a $1 minimum wallet-backed
+            Draft a market with clear rules, credible sources, resolution timing, and a 1 cUSDT minimum wallet-backed
             request.
           </p>
         </header>
@@ -372,7 +372,7 @@ export default function CreateMarketPage() {
             </div>
 
             <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 text-sm leading-6 text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
-              Market creation requests require a minimum $1 wallet-backed stake. The request stays pending until an
+              Market creation requests require a minimum 1 cUSDT wallet-backed stake. The request stays pending until an
               admin approves it, users can only submit one request every 24 hours, and approved creator markets earn 1%
               of each trade back to the creator wallet.
             </div>
@@ -381,7 +381,7 @@ export default function CreateMarketPage() {
               <label className="block">
                 <span className="flex items-center gap-2 text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
                   Creator Stake
-                  <FieldTooltip label="Minimum amount the market creator must put from their wallet before submitting the request. Backend should collect this through the wallet flow." />
+                  <FieldTooltip label="Minimum cUSDT amount the market creator must put from their Sepolia wallet before submitting the request. Backend should collect this through the wallet flow." />
                 </span>
                 <input
                   type="number"
@@ -393,7 +393,7 @@ export default function CreateMarketPage() {
                   className="mt-2 h-11 w-full rounded-md border border-[#CBD5E1] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
                 />
                 {creatorStake < 1 && (
-                  <span className="mt-2 block text-xs font-semibold text-[#DC2626]">Minimum is $1.</span>
+                  <span className="mt-2 block text-xs font-semibold text-[#DC2626]">Minimum is 1 cUSDT.</span>
                 )}
               </label>
               <div className="block">
@@ -412,8 +412,7 @@ export default function CreateMarketPage() {
                   onChange={event => updateDraft("token", event.target.value)}
                   className="mt-2 h-11 w-full cursor-pointer rounded-md border border-[#CBD5E1] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
                 >
-                  <option>Testnet ETH</option>
-                  <option>Mock USDC</option>
+                  <option>cUSDT</option>
                 </select>
               </label>
             </div>

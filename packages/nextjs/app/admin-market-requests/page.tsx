@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, LockKeyhole, ShieldAlert, XCircle } from "lucide-react";
 import { type LocalMarket, getLocalMarkets, updateLocalMarketStatus } from "~~/lib/localMarkets";
+import { formatMarketVolume } from "~~/lib/mockMarkets";
 
 const demoPassphrase = ["zama", "private", "markets", "2026"].join("-");
 
@@ -190,7 +191,7 @@ export default function AdminMarketRequestsPage() {
               </div>
 
               <div className="font-mono text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                ${request.creatorStake}
+                {request.creatorStake} cUSDT
               </div>
 
               <div className="grid gap-2">
@@ -249,7 +250,7 @@ export default function AdminMarketRequestsPage() {
                     {request.status === "open" ? "Accepted" : "Declined"}
                   </span>
                   <span className="font-mono text-[#525252] dark:text-[#A1A1A1]">
-                    Vol {request.encryptedVolumeLabel} / Yes {Math.round(request.yesProbability * 100)}%
+                    Vol {formatMarketVolume(request)} / Yes {Math.round(request.yesProbability * 100)}%
                   </span>
                   {request.adminNote && (
                     <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">Note: {request.adminNote}</span>
