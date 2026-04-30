@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ArrowLeft, CalendarClock, ChevronDown, Lock, MessageCircle, ShieldCheck, ThumbsUp } from "lucide-react";
+import { useAccount } from "wagmi";
 import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
 import { useNotifications } from "~~/components/notifications/NotificationsContext";
@@ -32,7 +34,7 @@ type MarketDetailProps = {
 };
 
 const presetAmounts = [1, 5, 10, 20, 50];
-const CUSDT_BALANCE = 5000;
+const CUSD_BALANCE = 5000;
 
 const sampleComments: MarketComment[] = [
   {
@@ -106,6 +108,8 @@ const getMarketDescription = (market: Market) =>
 const formatCategory = (category: Market["category"]) => category[0].toUpperCase() + category.slice(1);
 
 export const MarketDetail = ({ market }: MarketDetailProps) => {
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const { addNotification } = useNotifications();
   const { profileImageDataUrl, profileName } = useProfile();
   const searchParams = useSearchParams();
@@ -126,10 +130,10 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const imageUrl = market.coverImageDataUrl ?? marketImages[market.id] ?? fallbackImages[market.category];
   const parsedAmount = Number(amount);
-  const cUsdtAmount = parsedAmount || 0;
-  const creatorFee = market.status ? cUsdtAmount * 0.01 : 0;
-  const netCUsdtAmount = Math.max(0, cUsdtAmount - creatorFee);
-  const hasInsufficientBalance = cUsdtAmount > CUSDT_BALANCE;
+  const cUsdAmount = parsedAmount || 0;
+  const creatorFee = market.status ? cUsdAmount * 0.01 : 0;
+  const netCUsdAmount = Math.max(0, cUsdAmount - creatorFee);
+  const hasInsufficientBalance = cUsdAmount > CUSD_BALANCE;
   const currentProfileName = profileName || "Username Required";
   const isMarketTradable = !market.status || market.status === "open";
   const cameFromAdmin = searchParams.get("from") === "admin";
@@ -142,13 +146,13 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   }, [searchParams]);
 
   const estimatedShares = useMemo(() => {
-    if (!netCUsdtAmount || !selectedSide || hasInsufficientBalance) return "0.00";
+    if (!netCUsdAmount || !selectedSide || hasInsufficientBalance) return "0.00";
     const price = selectedSide === "yes" ? probability : 1 - probability;
-    return (netCUsdtAmount / Math.max(price, 0.01)).toFixed(2);
-  }, [hasInsufficientBalance, netCUsdtAmount, probability, selectedSide]);
+    return (netCUsdAmount / Math.max(price, 0.01)).toFixed(2);
+  }, [hasInsufficientBalance, netCUsdAmount, probability, selectedSide]);
 
-  const formatCUsdt = (value: number) =>
-    `${value.toLocaleString(undefined, { maximumFractionDigits: value >= 1 ? 2 : 4 })} cUSDT`;
+  const formatCUsd = (value: number) =>
+    `${value.toLocaleString(undefined, { maximumFractionDigits: value >= 1 ? 2 : 4 })} cUSD`;
   const formatUsdEquivalent = (value: number) =>
     `$${value.toLocaleString(undefined, { maximumFractionDigits: value >= 1 ? 2 : 4 })}`;
 
@@ -253,24 +257,29 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
   const reviewBet = () => {
     if (!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance) return;
+    if (!isConnected) {
+      setBetMessage("Connect your wallet to place an encrypted prediction.");
+      openConnectModal?.();
+      return;
+    }
 
-    const creatorFeeLabel = formatCUsdt(creatorFee);
+    const creatorFeeLabel = formatCUsd(creatorFee);
     saveLocalPosition({
       id: `position-${Date.now()}`,
       marketId: market.id,
       market: market.question,
       status: "open",
       side: selectedSide === "yes" ? "Yes" : "No",
-      stake: formatCUsdt(cUsdtAmount),
+      stake: formatCUsd(cUsdAmount),
       entry: `${selectedSide === "yes" ? yesPct : noPct}%`,
       current: `${selectedSide === "yes" ? yesPct : noPct}%`,
       pnl: 0,
       creatorFee: creatorFeeLabel,
-      netStake: formatCUsdt(netCUsdtAmount),
+      netStake: formatCUsd(netCUsdAmount),
       href: `/markets/${market.id}`,
       createdAt: new Date().toISOString(),
     });
-    recordLocalMarketTrade(market.id, selectedSide, cUsdtAmount);
+    recordLocalMarketTrade(market.id, selectedSide, cUsdAmount);
     setBetMessage(
       market.status
         ? `Position added. ${creatorFeeLabel} creator fee routes back to the creator wallet.`
@@ -688,12 +697,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             <label className="mt-5 block">
               <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Token From Wallet</span>
               <div className="mt-2 flex h-11 items-center justify-between rounded-md border border-[#E5E5E5] bg-white px-3 text-sm font-semibold text-[#0A0A0A] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#FAFAFA]">
-                <span>cUSDT on Sepolia</span>
+                <span>cUSD on Sepolia</span>
                 <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">Only currency</span>
               </div>
               <span className="mt-2 flex justify-between text-xs text-[#525252] dark:text-[#A1A1A1]">
-                <span>Balance {formatCUsdt(CUSDT_BALANCE)}</span>
-                <span>{formatUsdEquivalent(CUSDT_BALANCE)}</span>
+                <span>Balance {formatCUsd(CUSD_BALANCE)}</span>
+                <span>{formatUsdEquivalent(CUSD_BALANCE)}</span>
               </span>
             </label>
 
@@ -701,7 +710,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Amount</span>
                 <span className="rounded-md border border-[#E5E5E5] px-2 py-1 text-xs font-semibold text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]">
-                  cUSDT
+                  cUSD
                 </span>
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2">
@@ -712,12 +721,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                     onClick={() => addPresetAmount(preset)}
                     className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                   >
-                    {preset} cUSDT
+                    {preset} cUSD
                   </button>
                 ))}
                 <button
                   type="button"
-                  onClick={() => setAmount(String(CUSDT_BALANCE))}
+                  onClick={() => setAmount(String(CUSD_BALANCE))}
                   className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                 >
                   Max
@@ -728,13 +737,13 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 min="0"
                 value={amount}
                 onChange={event => setAmount(event.target.value)}
-                placeholder="Enter cUSDT amount"
+                placeholder="Enter cUSD amount"
                 className={`mt-3 h-12 w-full rounded-md border bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:bg-[#0A0A0A] dark:text-[#FAFAFA] ${
                   hasInsufficientBalance ? "border-[#DC2626]" : "border-[#E5E5E5] dark:border-[#1F1F1F]"
                 }`}
               />
               <div className="mt-2 flex justify-between text-xs">
-                <span className="text-[#525252] dark:text-[#A1A1A1]">≈ {formatUsdEquivalent(cUsdtAmount)}</span>
+                <span className="text-[#525252] dark:text-[#A1A1A1]">≈ {formatUsdEquivalent(cUsdAmount)}</span>
                 {hasInsufficientBalance && <span className="font-semibold text-[#DC2626]">Insufficient Balance</span>}
               </div>
             </div>
@@ -753,7 +762,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               {market.status && (
                 <div className="mt-2 flex justify-between text-[#525252] dark:text-[#A1A1A1]">
                   <span>Creator Fee 1%</span>
-                  <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{formatCUsdt(creatorFee)}</span>
+                  <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{formatCUsd(creatorFee)}</span>
                 </div>
               )}
             </div>
@@ -769,7 +778,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               className="smooth-action mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
             >
               <ShieldCheck size={17} />
-              Review Encrypted Bet
+              {isConnected ? "Review Encrypted Bet" : "Connect Wallet To Predict"}
             </button>
           </div>
         </aside>

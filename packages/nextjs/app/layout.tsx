@@ -10,7 +10,7 @@ import { getMetadata } from "~~/utils/helper/getMetadata";
 
 export const metadata = getMetadata({
   title: "DarkONNET Private Prediction Market",
-  description: "Private prediction markets with encrypted positions and cUSDT activity on Sepolia.",
+  description: "Private prediction markets with encrypted positions and cUSD activity on Sepolia.",
 });
 
 const DappWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -18,6 +18,7 @@ const DappWrapper = ({ children }: { children: React.ReactNode }) => {
     <html suppressHydrationWarning lang="en">
       <head>
         <link href="https://api.fontshare.com/v2/css?f[]=telegraf@400,500,700&display=swap" rel="stylesheet" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
       </head>
       <body suppressHydrationWarning>
         <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>

@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WrongNetworkDropdown } from "./WrongNetworkDropdown";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { Check, ChevronDown, Clipboard, ClipboardCheck, LogOut, UserRound, Wallet } from "lucide-react";
+import { Check, ChevronDown, Clipboard, ClipboardCheck, LogOut, UserRound, Wallet, WalletCards } from "lucide-react";
 import { getAddress } from "viem";
 import { useDisconnect } from "wagmi";
 import { BlockieAvatar } from "~~/components/helper";
@@ -167,6 +167,17 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
           </div>
 
           <div className="space-y-4 p-4">
+            <div className="rounded-md border border-[#FFD60A]/30 bg-[#FFD60A]/10 p-3 text-xs text-[#A37500] dark:text-[#FFD60A]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 font-semibold">
+                  <WalletCards size={14} />
+                  Balance
+                </span>
+                <span className="font-mono text-sm font-semibold">5,000 cUSD</span>
+              </div>
+              <div className="mt-1 text-[#525252] dark:text-[#A1A1A1]">Encrypted Sepolia testnet token</div>
+            </div>
+
             <label className="block">
               <span className="flex items-center gap-2 text-xs font-semibold text-[#525252] dark:text-[#A1A1A1]">
                 <UserRound size={14} />

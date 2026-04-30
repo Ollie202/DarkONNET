@@ -31,7 +31,7 @@ const positions: Position[] = [
     market: "Will the Fed cut rates before the end of summer 2026?",
     status: "open",
     side: "No",
-    stake: "20 cUSDT",
+    stake: "20 cUSD",
     entry: "54%",
     current: "62%",
     pnl: 3.4,
@@ -42,7 +42,7 @@ const positions: Position[] = [
     market: "Will BTC reach $150k before 2026 ends?",
     status: "open",
     side: "Yes",
-    stake: "10 cUSDT",
+    stake: "10 cUSD",
     entry: "41%",
     current: "36%",
     pnl: -1.12,
@@ -53,7 +53,7 @@ const positions: Position[] = [
     market: "Will oil trade above $100 before July?",
     status: "closed",
     side: "No",
-    stake: "15 cUSDT",
+    stake: "15 cUSD",
     entry: "48%",
     current: "43%",
     pnl: 1.9,
@@ -64,7 +64,7 @@ const positions: Position[] = [
     market: "Will Argentina win the 2026 World Cup?",
     status: "closed",
     side: "Yes",
-    stake: "5 cUSDT",
+    stake: "5 cUSD",
     entry: "18%",
     current: "15%",
     pnl: -0.64,
@@ -75,7 +75,7 @@ const positions: Position[] = [
     market: "Will a Red Sea shipping route normalize before Q3?",
     status: "completed",
     side: "No",
-    stake: "25 cUSDT",
+    stake: "25 cUSD",
     entry: "57%",
     current: "Resolved No",
     pnl: 11.25,
@@ -86,7 +86,7 @@ const positions: Position[] = [
     market: "Will a Solana ETF be approved in 2026?",
     status: "completed",
     side: "Yes",
-    stake: "12 cUSDT",
+    stake: "12 cUSD",
     entry: "44%",
     current: "Resolved No",
     pnl: -12,
@@ -95,7 +95,7 @@ const positions: Position[] = [
 ];
 
 const formatPnl = (pnl: number) =>
-  `${pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })} cUSDT`;
+  `${pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })} cUSD`;
 
 export default function PositionsPage() {
   const [activeTab, setActiveTab] = useState<PositionStatus>("open");

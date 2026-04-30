@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Droplets, Menu } from "lucide-react";
+import { Droplets, Menu, WalletCards } from "lucide-react";
+import { useAccount } from "wagmi";
 import { ThemeToggle } from "~~/components/ThemeToggle";
 import { RainbowKitCustomConnectButton } from "~~/components/helper";
 import { NotificationsMenu } from "~~/components/notifications/NotificationsMenu";
@@ -10,6 +11,7 @@ import { useSidebar } from "~~/components/sidebar/SidebarContext";
 
 export const Header = () => {
   const { toggle } = useSidebar();
+  const { isConnected } = useAccount();
 
   return (
     <header className="sticky top-0 z-[80] flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E5E5E5] bg-white px-2 dark:border-[#1F1F1F] dark:bg-[#0A0A0A] sm:px-3">
@@ -35,6 +37,13 @@ export const Header = () => {
         <span className="truncate text-sm text-[#525252] dark:text-[#A1A1A1]">Private Prediction Market</span>
       </div>
       <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+        {isConnected && (
+          <div className="hidden h-9 items-center gap-2 rounded-md border border-[#E5E5E5] px-3 text-sm font-semibold text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#FAFAFA] md:inline-flex">
+            <WalletCards size={16} className="text-[#A37500] dark:text-[#FFD60A]" />
+            <span className="text-[#525252] dark:text-[#A1A1A1]">Balance</span>
+            <span className="font-mono">5,000 cUSD</span>
+          </div>
+        )}
         <ThemeToggle />
         <NotificationsMenu />
         <a
