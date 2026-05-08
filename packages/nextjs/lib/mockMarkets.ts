@@ -10,10 +10,15 @@ export type MarketCategory =
 
 export type Market = {
   id: string;
+  slug?: string;
+  onchainMarketId?: string;
   question: string;
+  description?: string;
   category: MarketCategory;
+  sportType?: "football" | "basketball" | "nfl" | "formula1";
   yesProbability: number;
   encryptedVolumeLabel: string;
+  tradingVolume?: number;
   endsAt: string;
   signalLabel: string;
   sentimentSignals: {
@@ -25,11 +30,18 @@ export type Market = {
   rules?: string;
   sources?: string[];
   coverImageDataUrl?: string;
+  homeLogoUrl?: string;
+  awayLogoUrl?: string;
+  homeName?: string;
+  awayName?: string;
   creatorStake?: number;
   creatorKey?: string;
+  participantWallets?: string[];
   adminNote?: string;
+  resolution?: "yes" | "no" | "canceled";
+  resolvedAt?: string;
   token?: string;
-  status?: "draft" | "pending" | "open" | "declined";
+  status?: "draft" | "pending" | "open" | "declined" | "resolved";
 };
 
 export const mockMarkets: Market[] = [
@@ -284,6 +296,11 @@ export const mockMarkets: Market[] = [
   },
 ];
 
+export const isMarketEnded = (endsAt: string, now: Date = new Date()): boolean => {
+  const end = new Date(endsAt).getTime();
+  return Number.isFinite(end) && end <= now.getTime();
+};
+
 export const formatTimeRemaining = (endsAt: string, now: Date = new Date()): string => {
   const end = new Date(endsAt).getTime();
   const diffMs = end - now.getTime();
@@ -293,13 +310,47 @@ export const formatTimeRemaining = (endsAt: string, now: Date = new Date()): str
   if (days >= 30) return `${Math.floor(days / 30)}mo`;
   if (days >= 1) return `${days}d`;
   const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  return `${hours}h`;
+  if (hours >= 1) {
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  const minutes = Math.floor(diffMs / (1000 * 60));
+  if (minutes >= 1) {
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  return `${Math.max(1, Math.ceil(diffMs / 1000))}s`;
 };
 
-export const formatMarketVolume = (market: Pick<Market, "id" | "encryptedVolumeLabel">): string => {
-  if (market.encryptedVolumeLabel && market.encryptedVolumeLabel !== "Encrypted") return market.encryptedVolumeLabel;
+export const parseMarketVolume = (value?: string): number => {
+  if (!value || value === "Encrypted") return 0;
+  const normalized = value.trim().toLowerCase().replace(/,/g, "");
+  const amount = Number(normalized.match(/[\d.]+/)?.[0] || 0);
+  if (!Number.isFinite(amount)) return 0;
+  if (normalized.includes("m")) return amount * 1_000_000;
+  if (normalized.includes("k")) return amount * 1_000;
+  return amount;
+};
 
-  const seed = [...market.id].reduce((total, character) => total + character.charCodeAt(0), 0);
-  const volume = 25_000 + seed * 730;
-  return `${volume.toLocaleString()} cUSDT`;
+export const getMarketVolumeScore = (market: Pick<Market, "id" | "encryptedVolumeLabel" | "tradingVolume">): number => {
+  if (typeof market.tradingVolume === "number" && Number.isFinite(market.tradingVolume)) return market.tradingVolume;
+  const parsed = parseMarketVolume(market.encryptedVolumeLabel);
+  if (parsed > 0) return parsed;
+
+  if (!market.encryptedVolumeLabel || market.encryptedVolumeLabel === "Encrypted" || market.encryptedVolumeLabel === "0 cUSDT") {
+    return 0;
+  }
+
+  return 0;
+};
+
+export const formatMarketVolume = (market: Pick<Market, "id" | "encryptedVolumeLabel" | "tradingVolume">): string => {
+  if (market.encryptedVolumeLabel && market.encryptedVolumeLabel !== "Encrypted" && market.encryptedVolumeLabel !== "0 cUSDT") {
+    return market.encryptedVolumeLabel;
+  }
+  if (typeof market.tradingVolume === "number" && Number.isFinite(market.tradingVolume) && market.tradingVolume > 0) {
+    return `${market.tradingVolume.toLocaleString()} cUSDT`;
+  }
+
+  return "Encrypted";
 };

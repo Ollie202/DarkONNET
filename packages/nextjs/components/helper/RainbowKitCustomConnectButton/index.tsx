@@ -10,8 +10,8 @@ import { useDisconnect } from "wagmi";
 import { BlockieAvatar } from "~~/components/helper";
 import { useProfile } from "~~/components/profile/ProfileContext";
 import { useOutsideClick } from "~~/hooks/helper";
-import { useTargetNetwork } from "~~/hooks/helper/useTargetNetwork";
-import { DEFAULT_TOKEN_BALANCE, formatPlatformToken } from "~~/lib/token";
+import { useCUSDTBalance } from "~~/hooks/token/useCUSDTBalance";
+import { sepolia } from "~~/utils/chains";
 
 const shortAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
 
@@ -47,8 +47,6 @@ type ConnectedMenuProps = {
  * Custom Wagmi Connect Button with profile-first identity.
  */
 export const RainbowKitCustomConnectButton = () => {
-  const { targetNetwork } = useTargetNetwork();
-
   return (
     <ConnectButton.Custom>
       {({ account, chain, openConnectModal, mounted }) => {
@@ -58,7 +56,8 @@ export const RainbowKitCustomConnectButton = () => {
           return (
             <button
               className="smooth-action h-9 cursor-pointer rounded-md border-none bg-[#FFD208] px-2.5 text-sm font-semibold text-gray-900 sm:px-3"
-              onClick={openConnectModal}
+              disabled={!openConnectModal}
+              onClick={() => openConnectModal?.()}
               type="button"
             >
               <span className="sm:hidden">Connect</span>
@@ -67,7 +66,7 @@ export const RainbowKitCustomConnectButton = () => {
           );
         }
 
-        if (chain.unsupported || chain.id !== targetNetwork.id) {
+        if (chain.unsupported || chain.id !== sepolia.id) {
           return <WrongNetworkDropdown />;
         }
 
@@ -80,8 +79,18 @@ export const RainbowKitCustomConnectButton = () => {
 
 const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
   const { disconnect } = useDisconnect();
-  const { profileImageDataUrl, profileName, needsUsername, loadWalletProfile, saveUsernameForWallet } = useProfile();
+  const cUSDTBalance = useCUSDTBalance();
+  const {
+    profileImageDataUrl,
+    profileName,
+    needsUsername,
+    isProfileLoading,
+    profileError,
+    loadWalletProfile,
+    saveUsernameForWallet,
+  } = useProfile();
   const [usernameDraft, setUsernameDraft] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   const dropdownRef = useRef<HTMLDetailsElement>(null);
@@ -97,6 +106,17 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
   useOutsideClick(dropdownRef, () => dropdownRef.current?.removeAttribute("open"));
 
   const displayName = profileName || "Choose Username";
+  const balanceLabel = cUSDTBalance.isLoading
+    ? "Loading"
+    : cUSDTBalance.isAllowing
+      ? "Authorizing"
+      : cUSDTBalance.isDecrypting
+        ? "Decrypting"
+        : cUSDTBalance.balanceLabel
+          ? cUSDTBalance.balanceLabel
+          : cUSDTBalance.hasHandle
+            ? "Decrypt"
+            : "0 cUSDT";
 
   return (
     <>
@@ -119,7 +139,10 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
               <span className="text-sm font-semibold text-[#FAFAFA]">Username</span>
               <input
                 value={usernameDraft}
-                onChange={event => setUsernameDraft(event.target.value)}
+                onChange={event => {
+                  setUsernameError("");
+                  setUsernameDraft(event.target.value);
+                }}
                 autoFocus
                 placeholder="MacroMira"
                 className="mt-2 h-11 w-full rounded-md border border-[#1F1F1F] bg-[#0A0A0A] px-3 text-sm text-[#FAFAFA] outline-none focus:border-[#FFD60A]"
@@ -127,13 +150,23 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
             </label>
             <button
               type="button"
-              onClick={() => saveUsernameForWallet(usernameDraft)}
-              disabled={!usernameDraft.trim()}
+              onClick={async () => {
+                try {
+                  setUsernameError("");
+                  await saveUsernameForWallet(usernameDraft);
+                } catch (error) {
+                  setUsernameError(error instanceof Error ? error.message : "Unable to save username.");
+                }
+              }}
+              disabled={!usernameDraft.trim() || isProfileLoading}
               className="smooth-action mt-4 flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
             >
               <Check size={16} />
-              Continue
+              {isProfileLoading ? "Saving" : "Continue"}
             </button>
+            {(usernameError || profileError) && (
+              <div className="mt-3 text-sm font-semibold text-[#EF4444]">{usernameError || profileError}</div>
+            )}
           </div>
         </div>
       )}
@@ -169,16 +202,22 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
           </div>
 
           <div className="space-y-4 p-4">
-            <div className="rounded-md border border-[#FFD60A]/30 bg-[#FFD60A]/10 p-3 text-xs text-[#A37500] dark:text-[#FFD60A]">
+            <button
+              type="button"
+              onClick={cUSDTBalance.isReady ? cUSDTBalance.refresh : cUSDTBalance.decryptBalance}
+              disabled={cUSDTBalance.isLoading || cUSDTBalance.isAllowing || cUSDTBalance.isDecrypting}
+              className="smooth-action w-full rounded-md border border-[#FFD60A]/30 bg-[#FFD60A]/10 p-3 text-left text-xs text-[#A37500] hover:border-[#FFD60A]/60 disabled:cursor-not-allowed disabled:opacity-70 dark:text-[#FFD60A]"
+              title={cUSDTBalance.isReady ? "Refresh cUSDT balance" : "Decrypt cUSDT balance"}
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 font-semibold">
                   <WalletCards size={14} />
                   Balance
                 </span>
-                <span className="font-mono text-sm font-semibold">{formatPlatformToken(DEFAULT_TOKEN_BALANCE)}</span>
+                <span className="font-mono text-sm font-semibold">{balanceLabel}</span>
               </div>
               <div className="mt-1 text-[#525252] dark:text-[#A1A1A1]">Encrypted Sepolia testnet token</div>
-            </div>
+            </button>
 
             <label className="block">
               <span className="flex items-center gap-2 text-xs font-semibold text-[#525252] dark:text-[#A1A1A1]">

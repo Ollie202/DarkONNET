@@ -1,6 +1,5 @@
-import { NetworkOptions } from "./NetworkOptions";
 import { useDisconnect } from "wagmi";
-import { ArrowLeftOnRectangleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftOnRectangleIcon, ChevronDownIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 
 export const WrongNetworkDropdown = () => {
   const { disconnect } = useDisconnect();
@@ -15,7 +14,12 @@ export const WrongNetworkDropdown = () => {
         tabIndex={0}
         className="dropdown-content menu p-2 mt-1 shadow-center shadow-accent bg-base-200 rounded-box gap-1"
       >
-        <NetworkOptions />
+        <li className="max-w-64 px-3 py-2 text-xs leading-5 text-base-content/75">
+          <span className="flex items-start gap-2 whitespace-normal">
+            <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <span>Switch to Sepolia from your wallet to use DarkONNET transactions.</span>
+          </span>
+        </li>
         <li>
           <button
             className="smooth-action menu-item text-error btn-sm rounded-xl! flex gap-3 py-3"

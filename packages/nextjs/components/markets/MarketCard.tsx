@@ -1,9 +1,18 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { Clock, Flame, Lock } from "lucide-react";
+import { useReadContract } from "wagmi";
+import { MatchupVisual } from "~~/components/markets/MatchupVisual";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
-import { type Market, formatMarketVolume, formatTimeRemaining } from "~~/lib/mockMarkets";
+import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
+import { type OnchainPoolSnapshot } from "~~/hooks/markets/useOnchainMarketVolumes";
+import { useTimeRemaining } from "~~/hooks/markets/useTimeRemaining";
+import { type Market, formatMarketVolume, isMarketEnded } from "~~/lib/mockMarkets";
+import { formatPlatformTokenUnits } from "~~/lib/token";
+import { sepolia } from "~~/utils/chains";
+import { deploymentFor } from "~~/utils/contract";
 
 const categoryStyles: Record<Market["category"], string> = {
   crypto: "text-[#A37500] dark:text-[#FFD60A] border-[#FFD60A]/40",
@@ -58,14 +67,86 @@ export const fallbackImages: Record<Market["category"], string> = {
   esports: marketImages["lol-worlds-korea"],
 };
 
-export const MarketCard = ({ market }: { market: Market }) => {
-  const probability = useLiveProbability(market.yesProbability, market.sentimentSignals);
+const marketContract = deploymentFor(ConfidentialPredictionMarket, sepolia.id);
+type MarketInfo = readonly [bigint, string, string, bigint, boolean, number, boolean, boolean];
+
+const getResolutionLabel = (marketInfo?: MarketInfo, fallbackResolution?: Market["resolution"]) => {
+  if (marketInfo?.[6] || fallbackResolution === "canceled") return "Canceled";
+  if (marketInfo?.[4]) return marketInfo[5] === 0 ? "Resolved Yes" : "Resolved No";
+  if (fallbackResolution === "yes") return "Resolved Yes";
+  if (fallbackResolution === "no") return "Resolved No";
+  return "";
+};
+
+export const MarketCard = ({
+  market,
+  onchainPoolSnapshot,
+  onchainProbability,
+  onchainVolume,
+}: {
+  market: Market;
+  onchainPoolSnapshot?: OnchainPoolSnapshot;
+  onchainProbability?: number;
+  onchainVolume?: bigint;
+}) => {
+  const metadataProbability = useLiveProbability(market.yesProbability, market.sentimentSignals);
+  const onchainMarketId = useMemo(() => {
+    if (!market.onchainMarketId) return undefined;
+    try {
+      return BigInt(market.onchainMarketId);
+    } catch {
+      return undefined;
+    }
+  }, [market.onchainMarketId]);
+  const probability = onchainProbability ?? metadataProbability;
+  const volumeLabel =
+    onchainVolume !== undefined
+      ? formatPlatformTokenUnits(onchainVolume)
+      : onchainPoolSnapshot
+        ? formatPlatformTokenUnits(onchainPoolSnapshot.yes + onchainPoolSnapshot.no)
+        : formatMarketVolume(market);
   const yesPct = Math.round(probability * 100);
   const noPct = 100 - yesPct;
-  const timeLeft = formatTimeRemaining(market.endsAt);
+  const timeLeft = useTimeRemaining(market.endsAt);
+  const isEnded = isMarketEnded(market.endsAt);
   const catClass = categoryStyles[market.category];
-  const imageUrl = market.coverImageDataUrl ?? marketImages[market.id] ?? fallbackImages[market.category];
-  const marketPath = `/markets/${market.id}`;
+  const routeId = market.slug || market.id;
+  const imageUrl =
+    market.coverImageDataUrl ?? marketImages[routeId] ?? marketImages[market.id] ?? fallbackImages[market.category];
+  const marketPath = `/markets/${routeId}`;
+  const marketInfoRead = useReadContract({
+    address: marketContract?.address,
+    abi: marketContract?.abi,
+    functionName: "getMarketInfo",
+    args: onchainMarketId === undefined ? undefined : [onchainMarketId],
+    chainId: sepolia.id,
+    query: {
+      enabled: false,
+      refetchOnWindowFocus: false,
+    },
+  });
+  const marketInfo = marketInfoRead.data as MarketInfo | undefined;
+  const resolutionLabel = getResolutionLabel(marketInfo, market.resolution);
+  const isTradable =
+    market.status !== "pending" &&
+    market.status !== "declined" &&
+    market.status !== "resolved" &&
+    !resolutionLabel &&
+    !isEnded;
+  const isCreatorMarket = Boolean(market.creatorKey);
+  const statusLabel =
+    resolutionLabel ||
+    (market.status === "pending"
+      ? "Pending"
+      : market.status === "declined"
+        ? "Declined"
+        : market.status === "resolved"
+          ? "Resolved"
+          : isEnded
+            ? "Ended"
+            : market.status === "open" && isCreatorMarket
+              ? "Creator"
+              : "");
 
   return (
     <article className="group relative flex cursor-pointer flex-col gap-4 rounded-[0.75rem] border border-[#E5E5E5] bg-white p-5 transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.045] hover:border-[#FFD60A]/70 hover:shadow-[0_12px_24px_-14px_rgba(10,10,10,0.55)] dark:border-[#1F1F1F] dark:bg-[#141414] dark:hover:shadow-[0_12px_24px_-14px_rgba(255,214,10,0.45)]">
@@ -76,11 +157,7 @@ export const MarketCard = ({ market }: { market: Market }) => {
       />
 
       <div className="pointer-events-none relative z-20 -mx-1 -mt-1 overflow-hidden rounded-lg border border-[#E5E5E5] bg-[#F4F4F5] dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
-        <div
-          aria-hidden="true"
-          className="h-32 w-full bg-center bg-no-repeat opacity-90 transition-transform duration-200 ease-out group-hover:scale-[1.02]"
-          style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "cover" }}
-        />
+        <MatchupVisual fallbackImageUrl={imageUrl} market={market} />
       </div>
 
       <header className="pointer-events-none relative z-20 flex items-start justify-between gap-3">
@@ -88,19 +165,34 @@ export const MarketCard = ({ market }: { market: Market }) => {
           <span className={`text-[10px] tracking-wider px-2 py-0.5 rounded-md border ${catClass}`}>
             {market.category[0].toUpperCase() + market.category.slice(1)}
           </span>
-          {market.status === "pending" && (
+          {statusLabel === "Pending" && (
             <span className="rounded-md border border-[#FFD60A]/40 px-2 py-0.5 text-[10px] tracking-wider text-[#A37500] dark:text-[#FFD60A]">
               Pending
             </span>
           )}
-          {market.status === "open" && (
+          {statusLabel === "Creator" && (
             <span className="rounded-md border border-[#16A34A]/30 px-2 py-0.5 text-[10px] tracking-wider text-[#16A34A] dark:text-[#22C55E]">
               Creator
             </span>
           )}
-          {market.status === "declined" && (
+          {statusLabel === "Declined" && (
             <span className="rounded-md border border-[#DC2626]/30 px-2 py-0.5 text-[10px] tracking-wider text-[#DC2626] dark:text-[#EF4444]">
               Declined
+            </span>
+          )}
+          {statusLabel === "Resolved" && (
+            <span className="rounded-md border border-[#525252]/30 px-2 py-0.5 text-[10px] tracking-wider text-[#525252] dark:text-[#A1A1A1]">
+              Resolved
+            </span>
+          )}
+          {statusLabel === "Ended" && (
+            <span className="rounded-md border border-[#525252]/30 px-2 py-0.5 text-[10px] tracking-wider text-[#525252] dark:text-[#A1A1A1]">
+              Ended
+            </span>
+          )}
+          {resolutionLabel && (
+            <span className="rounded-md border border-[#525252]/30 px-2 py-0.5 text-[10px] tracking-wider text-[#525252] dark:text-[#A1A1A1]">
+              {resolutionLabel}
             </span>
           )}
           {market.trending && (
@@ -116,35 +208,49 @@ export const MarketCard = ({ market }: { market: Market }) => {
 
       <div className="pointer-events-none relative z-20">
         <h3 className="text-[15px] leading-snug text-[#0A0A0A] dark:text-[#FAFAFA]">{market.question}</h3>
-        <p className="mt-2 text-xs text-[#525252] dark:text-[#A1A1A1]">{market.signalLabel}</p>
       </div>
 
       <div className="pointer-events-none relative z-20">
         <SentimentBar probability={probability} signals={market.sentimentSignals} />
       </div>
 
-      <div className="relative z-30 flex gap-2">
+      {isTradable ? (
+        <div className="relative z-30 flex gap-2">
+          <Link
+            href={`${marketPath}?side=yes`}
+            className="smooth-action flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#16A34A]/30 bg-[#16A34A]/5 px-3 py-2 text-sm text-[#16A34A] hover:border-[#16A34A]/60 hover:bg-[#16A34A]/15 hover:shadow-[0_12px_24px_-14px_rgba(22,163,74,0.75)] dark:border-[#22C55E]/30 dark:bg-[#22C55E]/5 dark:text-[#22C55E] dark:hover:bg-[#22C55E]/10"
+          >
+            <span>Yes</span>
+            <span className="font-mono font-semibold">{yesPct}%</span>
+          </Link>
+          <Link
+            href={`${marketPath}?side=no`}
+            className="smooth-action flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#DC2626]/30 bg-[#DC2626]/5 px-3 py-2 text-sm text-[#DC2626] hover:border-[#DC2626]/60 hover:bg-[#DC2626]/15 hover:shadow-[0_12px_24px_-14px_rgba(220,38,38,0.75)] dark:border-[#EF4444]/30 dark:bg-[#EF4444]/5 dark:text-[#EF4444] dark:hover:bg-[#EF4444]/10"
+          >
+            <span>No</span>
+            <span className="font-mono font-semibold">{noPct}%</span>
+          </Link>
+        </div>
+      ) : (
         <Link
-          href={`${marketPath}?side=yes`}
-          className="smooth-action flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#16A34A]/30 bg-[#16A34A]/5 px-3 py-2 text-sm text-[#16A34A] hover:border-[#16A34A]/60 hover:bg-[#16A34A]/15 hover:shadow-[0_12px_24px_-14px_rgba(22,163,74,0.75)] dark:border-[#22C55E]/30 dark:bg-[#22C55E]/5 dark:text-[#22C55E] dark:hover:bg-[#22C55E]/10"
+          href={marketPath}
+          className="smooth-action relative z-30 flex h-10 items-center justify-center rounded-[0.5rem] border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
         >
-          <span>Yes</span>
-          <span className="font-mono font-semibold">{yesPct}%</span>
+          View Market
         </Link>
-        <Link
-          href={`${marketPath}?side=no`}
-          className="smooth-action flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#DC2626]/30 bg-[#DC2626]/5 px-3 py-2 text-sm text-[#DC2626] hover:border-[#DC2626]/60 hover:bg-[#DC2626]/15 hover:shadow-[0_12px_24px_-14px_rgba(220,38,38,0.75)] dark:border-[#EF4444]/30 dark:bg-[#EF4444]/5 dark:text-[#EF4444] dark:hover:bg-[#EF4444]/10"
-        >
-          <span>No</span>
-          <span className="font-mono font-semibold">{noPct}%</span>
-        </Link>
-      </div>
+      )}
 
       <footer className="pointer-events-none relative z-20 flex items-center justify-between border-t border-[#E5E5E5] pt-3 text-[11px] text-[#525252] dark:border-[#1F1F1F] dark:text-[#A1A1A1]">
         <span className="inline-flex items-center gap-1">
-          <Lock size={11} /> Volume {formatMarketVolume(market)}
+          <Lock size={11} /> Volume {volumeLabel}
         </span>
-        <span className="font-mono">{market.status ? "Fee 1%" : `ID ${market.id.slice(0, 6)}`}</span>
+        <span className="font-mono">
+          {resolutionLabel || market.status === "resolved" || isEnded
+            ? "Closed"
+            : market.status === "open" && isCreatorMarket
+              ? "Fee 1%"
+              : `ID ${market.id.slice(0, 6)}`}
+        </span>
       </footer>
     </article>
   );

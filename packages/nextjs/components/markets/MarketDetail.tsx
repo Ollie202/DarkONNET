@@ -2,18 +2,34 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useEncrypt } from "@zama-fhe/react-sdk";
 import { ArrowLeft, CalendarClock, ChevronDown, Lock, MessageCircle, ShieldCheck, ThumbsUp } from "lucide-react";
-import { useAccount } from "wagmi";
+import { bytesToHex, parseUnits } from "viem";
+import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
+import { MatchupVisual } from "~~/components/markets/MatchupVisual";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
 import { useNotifications } from "~~/components/notifications/NotificationsContext";
 import { useProfile } from "~~/components/profile/ProfileContext";
-import { recordLocalMarketTrade } from "~~/lib/localMarkets";
-import { saveLocalPosition } from "~~/lib/localPositions";
-import { type Market, formatMarketVolume, formatTimeRemaining } from "~~/lib/mockMarkets";
-import { DEFAULT_TOKEN_BALANCE, PLATFORM_TOKEN_LABEL, PLATFORM_TOKEN_SYMBOL, formatPlatformToken } from "~~/lib/token";
+import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
+import { EncryptedERC20 } from "~~/contracts/EncryptedERC20";
+import { useOnchainOddsSnapshot } from "~~/hooks/markets/useOnchainOddsSnapshot";
+import { useTimeRemaining } from "~~/hooks/markets/useTimeRemaining";
+import { useCUSDTBalance } from "~~/hooks/token/useCUSDTBalance";
+import { type ApiComment, darkonnetApi } from "~~/lib/darkonnetApi";
+import { type Market, formatMarketVolume, isMarketEnded } from "~~/lib/mockMarkets";
+import {
+  PLATFORM_TOKEN_LABEL,
+  PLATFORM_TOKEN_SYMBOL,
+  formatPlatformToken,
+  formatPlatformTokenUnits,
+} from "~~/lib/token";
+import { wagmiConfig } from "~~/services/web3/wagmiConfig";
+import { sepolia } from "~~/utils/chains";
+import { deploymentFor } from "~~/utils/contract";
 
 type SelectedSide = "yes" | "no" | null;
 type CommentSort = "top" | "new";
@@ -21,6 +37,7 @@ type CommentSort = "top" | "new";
 type MarketComment = {
   id: string;
   author: string;
+  walletAddress: string;
   createdAt: number;
   time: string;
   text: string;
@@ -34,60 +51,11 @@ type MarketDetailProps = {
   market: Market;
 };
 
-const presetAmounts = [1, 5, 10, 20, 50];
-const cUSDT_BALANCE = DEFAULT_TOKEN_BALANCE;
+type MarketInfo = readonly [bigint, string, string, bigint, boolean, number, boolean, boolean];
 
-const sampleComments: MarketComment[] = [
-  {
-    id: "comment-1",
-    author: "MacroMira",
-    createdAt: Date.now() - 12 * 60 * 1000,
-    time: "12m ago",
-    text: "The news flow feels tilted toward Yes, but I want to see one more confirmation before sizing up.",
-    likes: 18,
-    liked: false,
-  },
-  {
-    id: "comment-2",
-    author: "RiskDesk",
-    replyTo: "MacroMira",
-    parentId: "comment-1",
-    createdAt: Date.now() - 8 * 60 * 1000,
-    time: "8m ago",
-    text: "Same read here. I think the next benchmark print decides this.",
-    likes: 13,
-    liked: false,
-  },
-  {
-    id: "comment-3",
-    author: "MacroMira",
-    replyTo: "RiskDesk",
-    parentId: "comment-1",
-    createdAt: Date.now() - 5 * 60 * 1000,
-    time: "5m ago",
-    text: "Exactly. The resolution wording matters more than the headline itself.",
-    likes: 9,
-    liked: false,
-  },
-  {
-    id: "comment-4",
-    author: "YieldMapper",
-    createdAt: Date.now() - 28 * 60 * 1000,
-    time: "28m ago",
-    text: "Market is overreacting to headlines. The actual resolution criteria still looks hard to satisfy.",
-    likes: 11,
-    liked: false,
-  },
-  {
-    id: "comment-5",
-    author: "NorthStar",
-    createdAt: Date.now() - 60 * 60 * 1000,
-    time: "1h ago",
-    text: "Good market, but the final source used for resolution needs to be very explicit.",
-    likes: 7,
-    liked: false,
-  },
-];
+const presetAmounts = [1, 5, 10, 20, 50];
+const marketContract = deploymentFor(ConfidentialPredictionMarket, sepolia.id);
+const cUSDTContract = deploymentFor(EncryptedERC20, sepolia.id);
 
 const marketDescriptions: Partial<Record<string, string>> = {
   "oil-100-june":
@@ -103,20 +71,76 @@ const marketDescriptions: Partial<Record<string, string>> = {
 };
 
 const getMarketDescription = (market: Market) =>
-  marketDescriptions[market.id] ??
+  market.description ||
+  marketDescriptions[market.slug || market.id] ||
   `This market resolves according to credible public reporting and the stated resolution date. The outcome should be judged from reliable sources relevant to ${market.signalLabel.toLowerCase()}.`;
 
 const formatCategory = (category: Market["category"]) => category[0].toUpperCase() + category.slice(1);
 
+const getResolutionLabel = (marketInfo?: MarketInfo, fallbackResolution?: Market["resolution"]) => {
+  if (marketInfo?.[4]) {
+    if (marketInfo[5]) return "Canceled";
+    return marketInfo[5] === 0 ? "Resolved Yes" : "Resolved No";
+  }
+
+  if (fallbackResolution === "canceled") return "Canceled";
+  if (fallbackResolution === "yes") return "Resolved Yes";
+  if (fallbackResolution === "no") return "Resolved No";
+  return null;
+};
+
+const relativeTime = (createdAt: string | number) => {
+  const time = typeof createdAt === "number" ? createdAt : new Date(createdAt).getTime();
+  const diffMs = Date.now() - time;
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "Just now";
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
+const flattenComments = (
+  comments: ApiComment[],
+  activeWalletAddress = "",
+  parentAuthor?: string,
+  parentId?: string,
+): MarketComment[] =>
+  comments.flatMap(comment => {
+    const likedBy = Array.isArray(comment.likedBy) ? comment.likedBy.map(wallet => wallet.toLowerCase()) : [];
+    const mapped: MarketComment = {
+      id: comment.id,
+      author: comment.displayName,
+      walletAddress: comment.walletAddress,
+      createdAt: new Date(comment.createdAt).getTime(),
+      time: relativeTime(comment.createdAt),
+      text: comment.body,
+      likes: likedBy.length,
+      liked: Boolean(activeWalletAddress && likedBy.includes(activeWalletAddress.toLowerCase())),
+      replyTo: parentAuthor,
+      parentId: parentId || undefined,
+    };
+
+    return [
+      mapped,
+      ...flattenComments(comment.replies || [], activeWalletAddress, comment.displayName, parentId || comment.id),
+    ];
+  });
+
 export const MarketDetail = ({ market }: MarketDetailProps) => {
-  const { isConnected } = useAccount();
+  const router = useRouter();
+  const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+  const encrypt = useEncrypt();
+  const { writeContractAsync } = useWriteContract();
+  const cUSDTBalance = useCUSDTBalance();
   const { openConnectModal } = useConnectModal();
   const { addNotification } = useNotifications();
-  const { profileImageDataUrl, profileName } = useProfile();
+  const { profileImageDataUrl, profileName, walletAddress } = useProfile();
+  const activeCommentWalletAddress = (address || walletAddress || "").toLowerCase();
   const searchParams = useSearchParams();
-  const probability = useLiveProbability(market.yesProbability, market.sentimentSignals);
-  const yesPct = Math.round(probability * 100);
-  const noPct = 100 - yesPct;
+  const metadataProbability = useLiveProbability(market.yesProbability, market.sentimentSignals);
   const initialSide = searchParams.get("side");
   const [selectedSide, setSelectedSide] = useState<SelectedSide>(
     initialSide === "yes" || initialSide === "no" ? initialSide : null,
@@ -125,26 +149,130 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const [betMessage, setBetMessage] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
   const [commentSort, setCommentSort] = useState<CommentSort>("top");
-  const [comments, setComments] = useState<MarketComment[]>(sampleComments);
+  const [isPlacingBet, setIsPlacingBet] = useState(false);
+  const [comments, setComments] = useState<MarketComment[]>([]);
+  const [commentsMessage, setCommentsMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
-  const imageUrl = market.coverImageDataUrl ?? marketImages[market.id] ?? fallbackImages[market.category];
+  const onchainMarketId = useMemo(() => {
+    if (!market.onchainMarketId) {
+      return undefined;
+    }
+
+    try {
+      return BigInt(market.onchainMarketId);
+    } catch {
+      return undefined;
+    }
+  }, [market.onchainMarketId]);
+  const oddsSnapshot = useOnchainOddsSnapshot({
+    marketId: market.onchainMarketId,
+    enabled: Boolean(market.onchainMarketId),
+  });
+  const probability = oddsSnapshot.probability ?? metadataProbability;
+  const volumeLabel = oddsSnapshot.poolSnapshot
+    ? formatPlatformTokenUnits(oddsSnapshot.poolSnapshot.yes + oddsSnapshot.poolSnapshot.no)
+    : formatMarketVolume(market);
+  const yesPct = Math.round(probability * 100);
+  const noPct = 100 - yesPct;
+  const timeLeft = useTimeRemaining(market.endsAt);
+  const marketInfoRead = useReadContract({
+    address: marketContract?.address,
+    abi: marketContract?.abi,
+    functionName: "getMarketInfo",
+    args: onchainMarketId === undefined ? undefined : [onchainMarketId],
+    chainId: sepolia.id,
+    query: {
+      enabled: Boolean(marketContract && onchainMarketId !== undefined),
+      refetchOnWindowFocus: false,
+    },
+  });
+  const marketInfo = marketInfoRead.data as MarketInfo | undefined;
+  const isOnchainSettled = Boolean(marketInfo?.[4]);
+  const isOnchainMarketReady = Boolean(marketInfo?.[7]);
+  const isCheckingOnchainMarket = marketInfoRead.isLoading || marketInfoRead.isFetching;
+  const isResolvedByMetadata = Boolean(market.resolution);
+  const isEnded = isMarketEnded(market.endsAt);
+  const resolutionLabel = getResolutionLabel(marketInfo, market.resolution);
+  const imageUrl =
+    market.coverImageDataUrl ?? marketImages[market.slug || market.id] ?? fallbackImages[market.category];
   const parsedAmount = Number(amount);
   const cUSDTAmount = parsedAmount || 0;
-  const creatorFee = market.status ? cUSDTAmount * 0.01 : 0;
+  const hasCreatorFee = Boolean(market.creatorKey);
+  const creatorFee = hasCreatorFee ? cUSDTAmount * 0.01 : 0;
   const netCUSDTAmount = Math.max(0, cUSDTAmount - creatorFee);
-  const hasInsufficientBalance = cUSDTAmount > cUSDT_BALANCE;
+  const cUSDTBalanceNumber = cUSDTBalance.balance === undefined ? null : Number(cUSDTBalance.balance) / 1_000_000;
+  const hasInsufficientBalance = cUSDTBalanceNumber !== null && cUSDTAmount > cUSDTBalanceNumber;
   const currentProfileName = profileName || "Username Required";
-  const isMarketTradable = !market.status || market.status === "open";
+  const isMarketTradable =
+    (!market.status || market.status === "open") &&
+    (isOnchainMarketReady || isCheckingOnchainMarket) &&
+    !isOnchainSettled &&
+    !isResolvedByMetadata &&
+    !isEnded;
+  const marketClosedHeadline = resolutionLabel
+    ? "This market has resolved."
+    : isEnded
+      ? "This market has ended."
+      : isCheckingOnchainMarket
+        ? "Synchronizing with blockchain..."
+        : !isOnchainMarketReady
+          ? "This market is not live on-chain yet."
+          : market.status === "declined"
+            ? "This market was declined."
+            : market.status === "pending"
+              ? "This market is waiting for admin review."
+              : "Betting is closed for this market.";
+  const marketClosedBody = resolutionLabel
+    ? `Betting is closed because this market is ${resolutionLabel.toLowerCase()}.`
+    : isEnded
+      ? "This market has ended, so encrypted betting is closed."
+      : isCheckingOnchainMarket
+        ? "Authenticating market availability on the Zama fhEVM..."
+        : !isOnchainMarketReady
+          ? "This market exists in backend metadata, but it has not been created on the current prediction contract yet."
+          : market.status === "declined"
+            ? "This market request was declined, so betting is disabled."
+            : market.status === "pending"
+              ? "This market request is pending approval. Betting unlocks after an admin accepts it."
+              : "Encrypted betting is currently unavailable for this market.";
+  const oddsSourceLabel = oddsSnapshot.probability === null ? "Metadata odds" : "On-chain pool odds";
   const cameFromAdmin = searchParams.get("from") === "admin";
   const backHref = cameFromAdmin ? "/admin-market-requests" : "/";
   const backLabel = cameFromAdmin ? "Back To Pending Requests" : "Back To Markets";
+
+  const handleBack = (e: React.MouseEvent) => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      e.preventDefault();
+      router.back();
+    }
+  };
 
   useEffect(() => {
     const side = searchParams.get("side");
     setSelectedSide(side === "yes" || side === "no" ? side : null);
   }, [searchParams]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadComments = async () => {
+      try {
+        setCommentsMessage("");
+        const backendComments = await darkonnetApi.listComments(market.id);
+        if (active) setComments(flattenComments(backendComments, activeCommentWalletAddress));
+      } catch (err) {
+        if (active) setCommentsMessage(err instanceof Error ? err.message : "Unable to load backend comments.");
+      }
+    };
+
+    loadComments();
+
+    return () => {
+      active = false;
+    };
+  }, [activeCommentWalletAddress, market.id]);
 
   const estimatedShares = useMemo(() => {
     if (!netCUSDTAmount || !selectedSide || hasInsufficientBalance) return "0.00";
@@ -177,75 +305,119 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     });
   }, [commentSort, topLevelComments]);
 
-  const addComment = () => {
+  const addComment = async () => {
     const text = commentDraft.trim();
     if (!text) return;
+    const commentWalletAddress = address || walletAddress;
+    if (!commentWalletAddress) {
+      setCommentsMessage("Connect wallet to comment.");
+      openConnectModal?.();
+      return;
+    }
 
-    setComments(prev => [
-      {
-        id: `comment-${Date.now()}`,
-        author: currentProfileName,
-        createdAt: Date.now(),
-        time: "Just now",
-        text,
-        likes: 0,
-        liked: false,
-      },
-      ...prev,
-    ]);
-    setCommentDraft("");
-    setCommentSort("new");
+    try {
+      await darkonnetApi.createComment({
+        marketId: market.id,
+        walletAddress: commentWalletAddress,
+        displayName: currentProfileName,
+        body: text,
+      });
+      setComments(flattenComments(await darkonnetApi.listComments(market.id), activeCommentWalletAddress));
+      setCommentDraft("");
+      setCommentSort("new");
+      setCommentsMessage("");
+    } catch (err) {
+      setCommentsMessage(err instanceof Error ? err.message : "Unable to post comment.");
+    }
   };
 
-  const addReply = (targetId: string) => {
+  const addReply = async (targetId: string) => {
     const text = replyDrafts[targetId]?.trim();
     if (!text) return;
+    const commentWalletAddress = address || walletAddress;
+    if (!commentWalletAddress) {
+      setCommentsMessage("Connect wallet to reply.");
+      openConnectModal?.();
+      return;
+    }
 
     const parentComment = comments.find(comment => comment.id === targetId);
     const parentAuthor = parentComment?.author ?? "someone";
     const parentId = parentComment?.parentId ?? targetId;
     const replyAuthor = currentProfileName;
 
-    setComments(prev => [
-      {
-        id: `comment-${Date.now()}`,
-        author: replyAuthor,
-        replyTo: parentAuthor,
+    try {
+      await darkonnetApi.createComment({
+        marketId: market.id,
+        walletAddress: commentWalletAddress,
+        displayName: replyAuthor,
+        body: text,
         parentId,
-        createdAt: Date.now(),
-        time: "Just now",
-        text,
-        likes: 0,
-        liked: false,
-      },
-      ...prev,
-    ]);
-
-    if (parentAuthor === currentProfileName) {
-      addNotification({
-        title: "Reply On Your Comment",
-        message: `${replyAuthor} replied to your comment on "${market.question}"`,
-        time: "Just now",
       });
-    }
 
-    setReplyDrafts(prev => ({ ...prev, [targetId]: "" }));
-    setReplyingTo(null);
-    setExpandedThreads(prev => ({ ...prev, [parentId]: true }));
+      if (parentAuthor === currentProfileName) {
+        addNotification({
+          title: "Reply On Your Comment",
+          message: `${replyAuthor} replied to your comment on "${market.question}"`,
+          time: "Just now",
+        });
+      }
+
+      setComments(flattenComments(await darkonnetApi.listComments(market.id), activeCommentWalletAddress));
+      setReplyDrafts(prev => ({ ...prev, [targetId]: "" }));
+      setReplyingTo(null);
+      setExpandedThreads(prev => ({ ...prev, [parentId]: true }));
+      setCommentsMessage("");
+    } catch (err) {
+      setCommentsMessage(err instanceof Error ? err.message : "Unable to post reply.");
+    }
   };
 
-  const toggleLike = (commentId: string) => {
+  const toggleLike = async (commentId: string) => {
+    const comment = comments.find(item => item.id === commentId);
+    if (!comment) return;
+    if (!activeCommentWalletAddress) {
+      setCommentsMessage("Connect wallet to like comments.");
+      openConnectModal?.();
+      return;
+    }
+
+    const nextLiked = !comment.liked;
     setComments(prev =>
       prev.map(comment =>
         comment.id === commentId
           ? {
               ...comment,
-              liked: !comment.liked,
-              likes: comment.liked ? comment.likes - 1 : comment.likes + 1,
+              liked: nextLiked,
+              likes: nextLiked ? comment.likes + 1 : Math.max(0, comment.likes - 1),
             }
           : comment,
       ),
     );
+
+    try {
+      await darkonnetApi.setCommentLike({
+        marketId: market.id,
+        commentId,
+        walletAddress: activeCommentWalletAddress,
+        liked: nextLiked,
+      });
+      setComments(flattenComments(await darkonnetApi.listComments(market.id), activeCommentWalletAddress));
+      setCommentsMessage("");
+    } catch (err) {
+      setComments(prev =>
+        prev.map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                liked: !nextLiked,
+                likes: nextLiked ? Math.max(0, comment.likes - 1) : comment.likes + 1,
+              }
+            : comment,
+        ),
+      );
+      setCommentsMessage(err instanceof Error ? err.message : "Unable to update comment like.");
+    }
   };
 
   const addPresetAmount = (preset: number) => {
@@ -255,36 +427,96 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     });
   };
 
-  const reviewBet = () => {
-    if (!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance) return;
+  const reviewBet = async () => {
+    if (!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance || isPlacingBet) return;
     if (!isConnected) {
       setBetMessage("Connect your wallet to place an encrypted prediction.");
       openConnectModal?.();
       return;
     }
+    const participantWalletAddress = address || walletAddress;
+    if (!participantWalletAddress) {
+      setBetMessage("Wallet address is still loading. Try again in a moment.");
+      return;
+    }
+    if (!market.onchainMarketId) {
+      setBetMessage("This market is missing its on-chain numeric ID. Re-save or approve it through the backend first.");
+      return;
+    }
+    if (!marketContract || !cUSDTContract) {
+      setBetMessage("DarkONNET market contracts are not configured for Sepolia.");
+      return;
+    }
+    if (!isOnchainMarketReady) {
+      setBetMessage("This market is not live on the current prediction contract yet. Try again after it syncs.");
+      return;
+    }
+    if (chainId !== sepolia.id) {
+      setBetMessage("Switch your wallet to Sepolia to place a bet.");
+      return;
+    }
 
-    const creatorFeeLabel = formatCUSDT(creatorFee);
-    saveLocalPosition({
-      id: `position-${Date.now()}`,
-      marketId: market.id,
-      market: market.question,
-      status: "open",
-      side: selectedSide === "yes" ? "Yes" : "No",
-      stake: formatCUSDT(cUSDTAmount),
-      entry: `${selectedSide === "yes" ? yesPct : noPct}%`,
-      current: `${selectedSide === "yes" ? yesPct : noPct}%`,
-      pnl: 0,
-      creatorFee: creatorFeeLabel,
-      netStake: formatCUSDT(netCUSDTAmount),
-      href: `/markets/${market.id}`,
-      createdAt: new Date().toISOString(),
-    });
-    recordLocalMarketTrade(market.id, selectedSide, cUSDTAmount);
-    setBetMessage(
-      market.status
-        ? `Position added. ${creatorFeeLabel} creator fee routes back to the creator wallet.`
-        : "Position added to My Positions.",
-    );
+    const amountUnits = parseUnits(amount, 6);
+    if (amountUnits <= 0n || amountUnits > 18_446_744_073_709_551_615n) {
+      setBetMessage("Enter a positive cUSDT amount that fits the encrypted token limit.");
+      return;
+    }
+
+    setIsPlacingBet(true);
+    try {
+      setBetMessage("Encrypting cUSDT approval...");
+      const approvalInput = await encrypt.mutateAsync({
+        values: [{ value: amountUnits, type: "euint64" }],
+        contractAddress: cUSDTContract.address,
+        userAddress: participantWalletAddress as `0x${string}`,
+      });
+
+      setBetMessage("Approving encrypted cUSDT spend...");
+      await writeContractAsync({
+        address: cUSDTContract.address,
+        abi: cUSDTContract.abi,
+        functionName: "approve",
+        args: [
+          marketContract.address,
+          bytesToHex(approvalInput.handles[0]!) as `0x${string}`,
+          bytesToHex(approvalInput.inputProof) as `0x${string}`,
+        ],
+        chainId: sepolia.id,
+        gas: 15_000_000n,
+      });
+
+      setBetMessage("Approval sent. Encrypting prediction amount...");
+      const betInput = await encrypt.mutateAsync({
+        values: [{ value: amountUnits, type: "euint64" }],
+        contractAddress: marketContract.address,
+        userAddress: participantWalletAddress as `0x${string}`,
+      });
+
+      setBetMessage("Sending encrypted prediction after approval...");
+      const betHash = await writeContractAsync({
+        address: marketContract.address,
+        abi: marketContract.abi,
+        functionName: "bet",
+        args: [
+          BigInt(market.onchainMarketId),
+          selectedSide === "yes" ? 0 : 1,
+          bytesToHex(betInput.handles[0]!) as `0x${string}`,
+          bytesToHex(betInput.inputProof) as `0x${string}`,
+        ],
+        chainId: sepolia.id,
+        gas: 15_000_000n,
+      });
+      await waitForTransactionReceipt(wagmiConfig, { hash: betHash, chainId: sepolia.id });
+
+      await darkonnetApi.addParticipant(market.id, participantWalletAddress);
+      setBetMessage("Bet placed");
+      void oddsSnapshot.loadLatestSnapshot();
+      setAmount("");
+    } catch (err) {
+      setBetMessage(err instanceof Error ? err.message : "Unable to place encrypted prediction.");
+    } finally {
+      setIsPlacingBet(false);
+    }
   };
 
   return (
@@ -293,6 +525,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
         <div className="min-w-0 lg:overflow-y-auto lg:pr-2">
           <Link
             href={backHref}
+            onClick={handleBack}
             className="smooth-action mb-4 inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-[#525252] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
           >
             <ArrowLeft size={16} />
@@ -300,10 +533,8 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
           </Link>
 
           <div className="overflow-hidden rounded-lg border border-[#E5E5E5] bg-white dark:border-[#1F1F1F] dark:bg-[#141414]">
-            <div
-              className="relative h-56 bg-center bg-no-repeat md:h-72"
-              style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: "cover" }}
-            >
+            <div className="relative overflow-hidden">
+              <MatchupVisual fallbackImageUrl={imageUrl} market={market} variant="hero" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
               <div className="absolute bottom-5 left-5 right-5">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -315,9 +546,22 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                       Trending
                     </span>
                   )}
-                  {market.status && (
+                  {(market.status || hasCreatorFee) && (
                     <span className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-xs font-semibold text-white backdrop-blur">
-                      {market.status === "pending" ? "Pending Admin Review" : "Creator Market"}
+                      {market.status === "pending"
+                        ? "Pending Admin Review"
+                        : hasCreatorFee
+                          ? "Creator Market"
+                          : market.status === "declined"
+                            ? "Declined"
+                            : market.status === "resolved"
+                              ? "Resolved"
+                              : "Open"}
+                    </span>
+                  )}
+                  {resolutionLabel && (
+                    <span className="rounded-md border border-[#FFD60A]/50 bg-[#FFD60A]/20 px-2 py-1 text-xs font-semibold text-[#FFD60A] backdrop-blur">
+                      {resolutionLabel}
                     </span>
                   )}
                 </div>
@@ -345,22 +589,57 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                   <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Closes In</div>
                   <div className="mt-1 flex items-center gap-2 text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
                     <CalendarClock size={20} />
-                    {formatTimeRemaining(market.endsAt)}
+                    {timeLeft}
                   </div>
                 </div>
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
                   <div className="text-xs text-[#525252] dark:text-[#A1A1A1]">Volume</div>
                   <div className="mt-1 font-mono text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
-                    {formatMarketVolume(market)}
+                    {volumeLabel}
                   </div>
                 </div>
               </div>
 
               <SentimentBar probability={probability} signals={market.sentimentSignals} />
 
-              {market.status && (
+              <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 dark:border-[#1F1F1F] dark:bg-[#0A0A0A]">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">{oddsSourceLabel}</div>
+                    <div className="mt-1 text-xs leading-5 text-[#525252] dark:text-[#A1A1A1]">
+                      {oddsSnapshot.poolSnapshot
+                        ? "Current Yes and Current No are using decrypted on-chain pool odds."
+                        : oddsSnapshot.isLoading
+                          ? "Loading latest on-chain pool odds..."
+                          : "Using metadata odds until on-chain pool odds are available."}
+                    </div>
+                    {oddsSnapshot.error && (
+                      <div className="mt-1 text-xs font-semibold text-[#DC2626] dark:text-[#EF4444]">
+                        {oddsSnapshot.error.message}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {(resolutionLabel ||
+                isEnded ||
+                market.status === "pending" ||
+                market.status === "declined" ||
+                hasCreatorFee) && (
                 <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 text-sm leading-6 text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
-                  {market.status === "declined" ? (
+                  {resolutionLabel ? (
+                    <>
+                      This market is closed and {resolutionLabel.toLowerCase()}.
+                      {market.resolvedAt && (
+                        <span className="block font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+                          Resolved {new Date(market.resolvedAt).toLocaleString()}
+                        </span>
+                      )}
+                    </>
+                  ) : isEnded ? (
+                    <>This market has ended, so encrypted betting is closed.</>
+                  ) : market.status === "declined" ? (
                     <>
                       This market request was declined.
                       {market.adminNote && (
@@ -369,12 +648,14 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                         </span>
                       )}
                     </>
-                  ) : (
+                  ) : hasCreatorFee ? (
                     <>
                       Creator markets route <span className="font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">1%</span>{" "}
                       of each trade back to the creator wallet after execution. Odds move with trade flow once the
                       market is approved.
                     </>
+                  ) : (
+                    <>This creator market request is awaiting admin review before it can accept encrypted trades.</>
                   )}
                 </div>
               )}
@@ -404,7 +685,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 <div>
                   <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Sources</h2>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    {market.sources.map(source => (
+                    {Array.from(new Set(market.sources)).map(source => (
                       <a
                         key={source}
                         href={source}
@@ -474,6 +755,12 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                     </div>
                   </div>
                 </div>
+
+                {commentsMessage && (
+                  <div className="mt-3 rounded-md border border-[#DC2626]/30 px-3 py-2 text-sm font-semibold text-[#DC2626]">
+                    {commentsMessage}
+                  </div>
+                )}
 
                 <div className="mt-3 space-y-2">
                   {sortedComments.map(comment => {
@@ -651,19 +938,19 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <div>
                 <h2 className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Place Bet</h2>
                 <p className="mt-1 text-xs text-[#525252] dark:text-[#A1A1A1]">
-                  {isMarketTradable
-                    ? "No side is selected until you choose one."
-                    : "This market is waiting for admin review."}
+                  {resolutionLabel
+                    ? "This market has resolved. Claim payouts from My Positions."
+                    : isMarketTradable
+                      ? "No side is selected until you choose one."
+                      : marketClosedHeadline}
                 </p>
               </div>
               <Lock size={18} className="text-[#FFD60A]" />
             </div>
 
-            {!isMarketTradable && (
+            {!isMarketTradable && !isCheckingOnchainMarket && (
               <div className="mb-4 rounded-md border border-[#FFD60A]/40 bg-[#FFD60A]/10 p-3 text-sm font-medium text-[#A37500] dark:text-[#FFD60A]">
-                {market.status === "declined"
-                  ? "This market request was declined, so betting is disabled."
-                  : "This market request is pending approval. Betting unlocks after an admin accepts it."}
+                {marketClosedBody}
               </div>
             )}
 
@@ -671,7 +958,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <button
                 type="button"
                 onClick={() => setSelectedSide("yes")}
-                disabled={!isMarketTradable}
+                disabled={!isMarketTradable || isCheckingOnchainMarket}
                 className={`smooth-action h-11 cursor-pointer rounded-md border px-3 text-sm font-semibold ${
                   selectedSide === "yes"
                     ? "border-[#16A34A] bg-[#16A34A] text-white"
@@ -683,7 +970,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
               <button
                 type="button"
                 onClick={() => setSelectedSide("no")}
-                disabled={!isMarketTradable}
+                disabled={!isMarketTradable || isCheckingOnchainMarket}
                 className={`smooth-action h-11 cursor-pointer rounded-md border px-3 text-sm font-semibold ${
                   selectedSide === "no"
                     ? "border-[#DC2626] bg-[#DC2626] text-white"
@@ -701,8 +988,25 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 <span className="text-xs text-[#525252] dark:text-[#A1A1A1]">Only currency</span>
               </div>
               <span className="mt-2 flex justify-between text-xs text-[#525252] dark:text-[#A1A1A1]">
-                <span>Balance {formatCUSDT(cUSDT_BALANCE)}</span>
-                <span>{formatUsdEquivalent(cUSDT_BALANCE)}</span>
+                <span>{cUSDTBalance.isReady ? "Encrypted balance" : "Balance"}</span>
+                <button
+                  type="button"
+                  onClick={cUSDTBalance.isReady ? cUSDTBalance.refresh : cUSDTBalance.decryptBalance}
+                  disabled={cUSDTBalance.isLoading || cUSDTBalance.isAllowing || cUSDTBalance.isDecrypting}
+                  className="font-semibold text-[#0A0A0A] disabled:cursor-not-allowed disabled:opacity-60 dark:text-[#FAFAFA]"
+                >
+                  {cUSDTBalance.isLoading
+                    ? "Loading"
+                    : cUSDTBalance.isAllowing
+                      ? "Authorizing"
+                      : cUSDTBalance.isDecrypting
+                        ? "Decrypting"
+                        : cUSDTBalance.balanceLabel
+                          ? cUSDTBalance.balanceLabel
+                          : cUSDTBalance.hasHandle
+                            ? "Decrypt"
+                            : "0 cUSDT"}
+                </button>
               </span>
             </label>
 
@@ -726,8 +1030,9 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 ))}
                 <button
                   type="button"
-                  onClick={() => setAmount(String(cUSDT_BALANCE))}
-                  className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
+                  onClick={() => cUSDTBalanceNumber !== null && setAmount(String(cUSDTBalanceNumber))}
+                  disabled={cUSDTBalanceNumber === null}
+                  className="smooth-action h-9 cursor-pointer rounded-md border border-[#E5E5E5] text-sm font-semibold text-[#525252] disabled:cursor-not-allowed disabled:opacity-60 hover:border-[#FFD60A]/60 hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                 >
                   Max
                 </button>
@@ -759,7 +1064,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                 <span>Estimated Shares</span>
                 <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{estimatedShares}</span>
               </div>
-              {market.status && (
+              {hasCreatorFee && (
                 <div className="mt-2 flex justify-between text-[#525252] dark:text-[#A1A1A1]">
                   <span>Creator Fee 1%</span>
                   <span className="font-mono text-[#0A0A0A] dark:text-[#FAFAFA]">{formatCUSDT(creatorFee)}</span>
@@ -774,11 +1079,15 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
             <button
               type="button"
               onClick={reviewBet}
-              disabled={!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance}
+              disabled={!isMarketTradable || !selectedSide || !amount || hasInsufficientBalance || isPlacingBet}
               className="smooth-action mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
             >
               <ShieldCheck size={17} />
-              {isConnected ? "Review Encrypted Bet" : "Connect Wallet To Predict"}
+              {isPlacingBet
+                ? "Placing Encrypted Bet..."
+                : isConnected
+                  ? "Place Encrypted Bet"
+                  : "Connect Wallet To Predict"}
             </button>
           </div>
         </aside>

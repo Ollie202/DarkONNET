@@ -1,9 +1,10 @@
-import * as chains from "viem/chains";
+import type { Chain } from "viem";
+import { hardhat, sepolia } from "~~/utils/chains";
 
 export type BaseConfig = {
-  targetNetworks: readonly chains.Chain[];
+  targetNetworks: readonly Chain[];
   pollingInterval: number;
-  alchemyApiKey: string;
+  infuraApiKey: string;
   rpcOverrides?: Record<number, string>;
   walletConnectProjectId: string;
   onlyLocalBurnerWallet: boolean;
@@ -11,30 +12,34 @@ export type BaseConfig = {
 
 export type ScaffoldConfig = BaseConfig;
 
-const rawAlchemyKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
-if (!rawAlchemyKey) {
+const rawInfuraKey = process.env.NEXT_PUBLIC_INFURA_API_KEY?.trim();
+if (rawInfuraKey?.startsWith("http")) {
+  throw new Error("NEXT_PUBLIC_INFURA_API_KEY should contain only the API key, not the full Infura URL.");
+}
+
+if (!rawInfuraKey) {
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Environment variable NEXT_PUBLIC_ALCHEMY_API_KEY is required in production.");
+    throw new Error("Environment variable NEXT_PUBLIC_INFURA_API_KEY is required in production.");
   } else {
-    console.warn("NEXT_PUBLIC_ALCHEMY_API_KEY is not set. Falling back to public RPCs.");
+    console.warn("NEXT_PUBLIC_INFURA_API_KEY is not set. Falling back to public RPCs.");
   }
 }
 
 const scaffoldConfig = {
   // The networks on which your DApp is live
-  targetNetworks: [chains.sepolia, chains.hardhat],
+  targetNetworks: [sepolia, hardhat],
   // The interval at which your front-end polls the RPC servers for new data (it has no effect if you only target the local network (default is 4000))
   pollingInterval: 30000,
-  // This is ours Alchemy's default API key.
-  // You can get your own at https://dashboard.alchemyapi.io
+  // This is the Infura API key.
+  // You can get your own at https://developer.metamask.io/
   // It's recommended to store it in an env variable:
   // .env.local for local testing, and in the Vercel/system env config for live apps.
-  alchemyApiKey: rawAlchemyKey || "",
+  infuraApiKey: rawInfuraKey || "",
   // If you want to use a different RPC for a specific network, you can add it here.
   // The key is the chain ID, and the value is the HTTP RPC URL
   rpcOverrides: {
     // Example:
-    // [chains.mainnet.id]: "https://mainnet.rpc.buidlguidl.com",
+    // [mainnet.id]: "https://mainnet.rpc.buidlguidl.com",
   },
   // This is ours WalletConnect's default project ID.
   // You can get your own at https://cloud.walletconnect.com

@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { type ApiNotification, darkonnetApi } from "~~/lib/darkonnetApi";
 
 export type Notification = {
   id: string;
@@ -14,51 +15,39 @@ type NotificationsContextValue = {
   notifications: Notification[];
   unreadCount: number;
   addNotification: (notification: Omit<Notification, "id" | "read">) => void;
+  connectWalletNotifications: (walletAddress?: string) => void;
   markAsRead: (id: string) => void;
 };
 
-const initialNotifications: Notification[] = [
-  {
-    id: "notif-1",
-    title: "Reply On Your Comment",
-    message: "0x44...91cB replied to your take on the Fed rates market.",
-    time: "2m ago",
-    read: false,
-  },
-  {
-    id: "notif-2",
-    title: "Market Moving",
-    message: "BTC above $150k moved 4% toward Yes in the last hour.",
-    time: "18m ago",
-    read: false,
-  },
-  {
-    id: "notif-3",
-    title: "Comment Liked",
-    message: "Someone liked your comment on the oil market.",
-    time: "42m ago",
-    read: false,
-  },
-  {
-    id: "notif-4",
-    title: "Resolution Soon",
-    message: "NBA Finals East market is approaching its resolution window.",
-    time: "1h ago",
-    read: true,
-  },
-  {
-    id: "notif-5",
-    title: "New Discussion",
-    message: "A new thread started on the AI stocks correction market.",
-    time: "3h ago",
-    read: true,
-  },
-];
-
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
+const relativeTime = (date: string) => {
+  const diffMs = Date.now() - new Date(date).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "Just now";
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
+const mapNotification = (notification: ApiNotification): Notification => ({
+  id: notification.id,
+  title: notification.title,
+  message: notification.body,
+  time: relativeTime(notification.createdAt),
+  read: Boolean(notification.readAt),
+});
+
 export const NotificationsProvider = ({ children }: { children: React.ReactNode }) => {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [walletAddress, setWalletAddress] = useState("");
+  const socketRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    return () => socketRef.current?.close();
+  }, []);
 
   const addNotification = useCallback((notification: Omit<Notification, "id" | "read">) => {
     setNotifications(prev => [
@@ -71,20 +60,59 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
     ]);
   }, []);
 
-  const markAsRead = useCallback((id: string) => {
-    setNotifications(prev =>
-      prev.map(notification => (notification.id === id ? { ...notification, read: true } : notification)),
-    );
+  const connectWalletNotifications = useCallback((address?: string) => {
+    const normalizedAddress = address?.toLowerCase() || "";
+    setWalletAddress(normalizedAddress);
+    socketRef.current?.close();
+    socketRef.current = null;
+
+    if (!normalizedAddress) {
+      setNotifications([]);
+      return;
+    }
+
+    const connect = async () => {
+      const nextNotifications = await darkonnetApi.listNotifications(normalizedAddress);
+      setNotifications(nextNotifications.map(mapNotification));
+
+      const socket = new WebSocket(await darkonnetApi.authenticatedWsNotificationsUrl(normalizedAddress));
+      socketRef.current = socket;
+      socket.addEventListener("message", event => {
+        try {
+          const payload = JSON.parse(event.data) as { type?: string; notification?: ApiNotification };
+          if (payload.type === "notification.created" && payload.notification) {
+            setNotifications(prev => [mapNotification(payload.notification as ApiNotification), ...prev]);
+          }
+        } catch {
+          // Ignore malformed websocket messages.
+        }
+      });
+    };
+
+    connect().catch(() => setNotifications([]));
   }, []);
+
+  const markAsRead = useCallback(
+    (id: string) => {
+      if (walletAddress) {
+        darkonnetApi.markNotificationRead(walletAddress, id).catch(() => {});
+      }
+      setNotifications(prev =>
+        prev.map(notification => (notification.id === id ? { ...notification, read: true } : notification)),
+      );
+    },
+    [walletAddress],
+  );
 
   const value = useMemo(
     () => ({
       notifications,
       unreadCount: notifications.filter(notification => !notification.read).length,
       addNotification,
+      connectWalletNotifications,
       markAsRead,
     }),
-    [addNotification, markAsRead, notifications],
+    [addNotification, connectWalletNotifications, markAsRead, notifications],
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;

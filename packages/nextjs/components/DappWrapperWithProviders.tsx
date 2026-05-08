@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
 import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ZamaProvider } from "@zama-fhe/react-sdk";
@@ -8,9 +8,8 @@ import { IndexedDBStorage, RelayerWeb, SepoliaConfig, type ZamaSDKEvent } from "
 import { RelayerCleartext, hardhatCleartextConfig } from "@zama-fhe/sdk/cleartext";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { useTheme } from "next-themes";
-import { Toaster } from "react-hot-toast";
-import { sepolia } from "viem/chains";
-import { WagmiProvider, useAccount, useChainId, useSwitchChain } from "wagmi";
+import toast, { Toaster } from "react-hot-toast";
+import { WagmiProvider, useChainId } from "wagmi";
 import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/helper";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
@@ -74,18 +73,133 @@ const ZamaRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const SepoliaDefaultNetwork = () => {
-  const chainId = useChainId();
-  const { isConnected } = useAccount();
-  const { switchChain } = useSwitchChain();
+const isMetaMaskConnectFailure = (reason: unknown) => {
+  const message =
+    reason instanceof Error
+      ? reason.message
+      : typeof reason === "string"
+        ? reason
+        : typeof reason === "object" && reason && "message" in reason
+          ? String((reason as { message?: unknown }).message)
+          : "";
 
+  return /failed to connect to metamask/i.test(message);
+};
+
+const normalizeRuntimeMessage = (reason: unknown) => {
+  if (reason instanceof Error) return reason.message;
+  if (typeof reason === "string") return reason;
+  if (typeof reason === "object" && reason && "message" in reason) {
+    return String((reason as { message?: unknown }).message || "Unknown runtime error");
+  }
+  return "Unknown runtime error";
+};
+
+const isWalletExtensionFailure = (reason: unknown, source = "") => {
+  const message = normalizeRuntimeMessage(reason);
+  return (
+    /metamask|walletconnect|inpage\.js|user rejected|resource unavailable|disconnected port object/i.test(message) ||
+    /chrome-extension:\/\/nkbihfbeogaeaoehlefnkodbefgpgknn/i.test(source)
+  );
+};
+
+class ProviderErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn("Provider tree failed to render cleanly.", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.children;
+    }
+    return this.props.children;
+  }
+}
+
+const WALLET_EXTENSION_TOAST_ID = "wallet-extension-connect-failure";
+let lastWalletToastTime = 0;
+
+const showWalletExtensionToast = (reason: unknown) => {
+  const now = Date.now();
+  if (now - lastWalletToastTime < 10000) return; // Prevent spamming in console
+  
+  if (isMetaMaskConnectFailure(reason)) {
+    lastWalletToastTime = now;
+    // We log this to the console instead of showing a toast to prevent background noise 
+    // from interrupting the user's browsing experience.
+    console.warn("FHE SDK: MetaMask connection is required for encrypted features but is currently locked or unavailable.");
+  }
+};
+
+
+
+const WalletErrorShield = () => {
   useEffect(() => {
-    if (!isConnected || chainId === sepolia.id) {
-      return;
+    const recordError = (reason: unknown, source = "") => {
+      console.warn("Wallet/extension issue was intercepted.", { message: normalizeRuntimeMessage(reason), source });
+    };
+
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (!isWalletExtensionFailure(event.reason)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      recordError(event.reason, "unhandledrejection");
+      console.warn("Wallet/extension rejection was intercepted.", event.reason);
+      showWalletExtensionToast(event.reason);
+    };
+
+    const onWindowError = (event: ErrorEvent) => {
+      const source = event.filename || "";
+      if (!isWalletExtensionFailure(event.error || event.message, source)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      recordError(event.error || event.message, source);
+      console.warn("Wallet/extension runtime error was caught.", event.error || event.message);
+      showWalletExtensionToast(event.error || event.message);
+    };
+
+    const onShieldedWalletError = (event: Event) => {
+      const detail =
+        "detail" in event && typeof event.detail === "object" && event.detail
+          ? (event.detail as { message?: unknown; source?: unknown })
+          : {};
+      const message = typeof detail.message === "string" ? detail.message : "";
+      const source = typeof detail.source === "string" ? detail.source : "early-shield";
+      recordError(message, source);
+      showWalletExtensionToast(message);
+    };
+
+    const lastShieldedError =
+      "__darkonnetLastWalletExtensionError" in window
+        ? (
+            window as typeof window & {
+              __darkonnetLastWalletExtensionError?: { message?: unknown; source?: unknown };
+            }
+          ).__darkonnetLastWalletExtensionError
+        : undefined;
+    if (lastShieldedError?.message) {
+      recordError(
+        lastShieldedError.message,
+        typeof lastShieldedError.source === "string" ? lastShieldedError.source : "early-shield",
+      );
+      showWalletExtensionToast(lastShieldedError.message);
     }
 
-    switchChain?.({ chainId: sepolia.id });
-  }, [chainId, isConnected, switchChain]);
+    window.addEventListener("darkonnet:wallet-extension-error", onShieldedWalletError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection, true);
+    window.addEventListener("error", onWindowError, true);
+    return () => {
+      window.removeEventListener("darkonnet:wallet-extension-error", onShieldedWalletError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection, true);
+      window.removeEventListener("error", onWindowError, true);
+    };
+  }, []);
 
   return null;
 };
@@ -100,22 +214,23 @@ export const DappWrapperWithProviders = ({ children }: { children: React.ReactNo
   }, []);
 
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           avatar={BlockieAvatar}
-          initialChain={sepolia}
           theme={mounted ? (isDarkMode ? darkTheme() : lightTheme()) : darkTheme()}
         >
-          <SepoliaDefaultNetwork />
-          <ZamaRuntimeProvider>
-            <ProgressBar height="3px" color="#2299dd" />
-            <div className={`flex flex-col min-h-screen`}>
-              <Header />
-              <main className="relative flex flex-col flex-1">{children}</main>
-            </div>
-            <Toaster />
-          </ZamaRuntimeProvider>
+          <WalletErrorShield />
+          <ProviderErrorBoundary>
+            <ZamaRuntimeProvider>
+              <ProgressBar height="3px" color="#2299dd" />
+              <div className={`flex flex-col min-h-screen`}>
+                <Header />
+                <main className="relative flex flex-col flex-1">{children}</main>
+              </div>
+              <Toaster />
+            </ZamaRuntimeProvider>
+          </ProviderErrorBoundary>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

@@ -1,6 +1,7 @@
 "use client";
 
-import { type Market, type MarketCategory, mockMarkets } from "~~/lib/mockMarkets";
+import { keccak256, stringToBytes } from "viem";
+import { type Market, type MarketCategory, getMarketVolumeScore, mockMarkets } from "~~/lib/mockMarkets";
 
 export type LocalMarket = Market & {
   createdAt: string;
@@ -109,12 +110,14 @@ export const recordLocalMarketTrade = (marketId: string, side: "yes" | "no", cUS
     const tradeWeight = Math.min(0.08, Math.max(0.01, cUSDTAmount / 1000));
     const direction = side === "yes" ? 1 : -1;
     const nextProbability = Math.min(0.96, Math.max(0.04, market.yesProbability + direction * tradeWeight));
-    const currentVolume = Number(market.encryptedVolumeLabel.replace(/[^0-9.]/g, "")) || 0;
+    const currentVolume = getMarketVolumeScore(market);
+    const nextVolume = currentVolume + cUSDTAmount;
 
     return {
       ...market,
       yesProbability: nextProbability,
-      encryptedVolumeLabel: `${Math.round(currentVolume + cUSDTAmount).toLocaleString()} cUSDT`,
+      encryptedVolumeLabel: `${Math.round(nextVolume).toLocaleString()} cUSDT`,
+      tradingVolume: nextVolume,
       signalLabel: side === "yes" ? "Latest trade leaned Yes" : "Latest trade leaned No",
       sentimentSignals: {
         news: market.sentimentSignals.news,
@@ -160,13 +163,18 @@ export const createMarketFromDraft = (draft: CreateMarketDraft, creator: CreateM
   const cleanSources = draft.sources.map(source => source.trim()).filter(Boolean);
   const createdAt = new Date().toISOString();
   const idBase = slugify(draft.question) || "custom-market";
+  const slug = `${idBase}-${Date.now()}`;
+  const onchainMarketId = BigInt(keccak256(stringToBytes(slug))).toString();
 
   return {
-    id: `${idBase}-${Date.now()}`,
+    id: onchainMarketId,
+    slug,
+    onchainMarketId,
     question: draft.question.trim(),
     category: draft.category || "finance",
     yesProbability: 0.5,
     encryptedVolumeLabel: "0 cUSDT",
+    tradingVolume: 0,
     endsAt: draft.resolutionDate ? new Date(draft.resolutionDate).toISOString() : createdAt,
     signalLabel: "Awaiting market activity",
     sentimentSignals: { news: 50, volume: 50, crowd: 50 },

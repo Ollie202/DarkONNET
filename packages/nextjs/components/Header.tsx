@@ -2,17 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Droplets, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useAccount } from "wagmi";
 import { ThemeToggle } from "~~/components/ThemeToggle";
+import { CUSDTFaucetButton } from "~~/components/faucet/CUSDTFaucetButton";
 import { RainbowKitCustomConnectButton } from "~~/components/helper";
 import { NotificationsMenu } from "~~/components/notifications/NotificationsMenu";
 import { useSidebar } from "~~/components/sidebar/SidebarContext";
-import { DEFAULT_TOKEN_BALANCE, formatPlatformToken } from "~~/lib/token";
+import { useCUSDTBalance } from "~~/hooks/token/useCUSDTBalance";
 
 export const Header = () => {
   const { toggle } = useSidebar();
   const { isConnected } = useAccount();
+  const cUSDTBalance = useCUSDTBalance();
 
   return (
     <header className="sticky top-0 z-[80] flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E5E5E5] bg-white px-2 dark:border-[#1F1F1F] dark:bg-[#0A0A0A] sm:px-3">
@@ -41,21 +43,31 @@ export const Header = () => {
       </div>
       <div className="flex min-w-0 items-center gap-1 sm:gap-2">
         {isConnected && (
-          <div className="hidden h-9 items-center rounded-full border border-[#FFD60A]/35 bg-[#FFD60A]/10 px-4 text-sm font-semibold text-[#0A0A0A] shadow-[0_12px_30px_-24px_rgba(255,214,10,0.65)] dark:text-[#FAFAFA] md:inline-flex">
-            <span className="font-mono">{formatPlatformToken(DEFAULT_TOKEN_BALANCE)}</span>
-          </div>
+          <button
+            type="button"
+            onClick={cUSDTBalance.isReady ? cUSDTBalance.refresh : cUSDTBalance.decryptBalance}
+            disabled={cUSDTBalance.isLoading || cUSDTBalance.isAllowing || cUSDTBalance.isDecrypting}
+            className="hidden h-9 items-center rounded-full border border-[#FFD60A]/35 bg-[#FFD60A]/10 px-4 text-sm font-semibold text-[#0A0A0A] shadow-[0_12px_30px_-24px_rgba(255,214,10,0.65)] disabled:cursor-not-allowed disabled:opacity-70 dark:text-[#FAFAFA] md:inline-flex"
+            title={cUSDTBalance.isReady ? "Refresh cUSDT balance" : "Decrypt cUSDT balance"}
+          >
+            <span className="font-mono">
+              {cUSDTBalance.isLoading
+                ? "Loading cUSDT"
+                : cUSDTBalance.isAllowing
+                  ? "Authorizing"
+                  : cUSDTBalance.isDecrypting
+                    ? "Decrypting"
+                    : cUSDTBalance.balanceLabel
+                      ? cUSDTBalance.balanceLabel
+                      : cUSDTBalance.hasHandle
+                        ? "Decrypt cUSDT"
+                        : "0 cUSDT"}
+            </span>
+          </button>
         )}
         <ThemeToggle />
         <NotificationsMenu />
-        <a
-          href="https://sepoliafaucet.com/"
-          target="_blank"
-          rel="noreferrer"
-          className="smooth-action inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-[#E5E5E5] px-2.5 text-sm font-medium text-[#525252] hover:border-[#FFD60A]/60 hover:bg-[#F4F4F5] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:bg-[#141414] dark:hover:text-[#FFD60A] sm:px-3"
-        >
-          <Droplets size={16} />
-          <span className="hidden sm:inline">Faucet</span>
-        </a>
+        <CUSDTFaucetButton />
         <RainbowKitCustomConnectButton />
       </div>
     </header>

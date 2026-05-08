@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ShieldCheck } from "lucide-react";
@@ -8,52 +9,215 @@ import { useAccount } from "wagmi";
 import { type CategoryFilter, CategoryTabs } from "~~/components/markets/CategoryTabs";
 import { MarketCard } from "~~/components/markets/MarketCard";
 import { useProfile } from "~~/components/profile/ProfileContext";
-import { getAllMarkets, getCreatorMarkets, getMyCreatorMarkets } from "~~/lib/localMarkets";
-import { type Market } from "~~/lib/mockMarkets";
-
+import { type OnchainPoolSnapshot, useOnchainMarketVolumes } from "~~/hooks/markets/useOnchainMarketVolumes";
+import { darkonnetApi } from "~~/lib/darkonnetApi";
+import { useIsAllowed } from "@zama-fhe/react-sdk";
+import { type Market, getMarketVolumeScore } from "~~/lib/mockMarkets";
+import { sepolia } from "~~/utils/chains";
+import { deploymentFor } from "~~/utils/contract";
+import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
 type MarketGridProps = {
   source?: "platform" | "creator";
 };
 
-export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
-  const { isConnected } = useAccount();
-  const { openConnectModal } = useConnectModal();
-  const { profileName, walletAddress } = useProfile();
-  const [filter, setFilter] = useState<CategoryFilter>(source === "creator" ? "all" : "trending");
-  const [creatorTab, setCreatorTab] = useState<"all" | "mine">("all");
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const isCreatorMarketView = source === "creator";
-  const creatorKey = isConnected ? walletAddress || profileName : "";
+type SportsFilter = "all" | NonNullable<Market["sportType"]>;
+type OnchainMarketGridData = {
+  poolSnapshotsByMarketId: Record<string, OnchainPoolSnapshot>;
+  probabilitiesByMarketId: Record<string, number>;
+  volumesByMarketId: Record<string, bigint>;
+};
+
+const sportsFilters: { id: SportsFilter; label: string }[] = [
+  { id: "all", label: "All Sports" },
+  { id: "nfl", label: "NFL" },
+  { id: "basketball", label: "Basketball" },
+  { id: "football", label: "Football" },
+  { id: "formula1", label: "Formula 1" },
+];
+
+const emptyOnchainData: OnchainMarketGridData = {
+  poolSnapshotsByMarketId: {},
+  probabilitiesByMarketId: {},
+  volumesByMarketId: {},
+};
+
+const OnchainMarketDataBridge = ({
+  markets,
+  onUpdate,
+}: {
+  markets: Market[];
+  onUpdate: (data: OnchainMarketGridData) => void;
+}) => {
+  const { poolSnapshotsByMarketId, probabilitiesByMarketId, volumesByMarketId } = useOnchainMarketVolumes(markets);
 
   useEffect(() => {
-    const syncMarkets = () =>
-      setMarkets(
-        isCreatorMarketView
-          ? creatorTab === "mine"
-            ? getMyCreatorMarkets(creatorKey)
-            : getCreatorMarkets()
-          : getAllMarkets(),
-      );
+    onUpdate({ poolSnapshotsByMarketId, probabilitiesByMarketId, volumesByMarketId });
+  }, [onUpdate, poolSnapshotsByMarketId, probabilitiesByMarketId, volumesByMarketId]);
 
-    syncMarkets();
-    window.addEventListener("local-markets-updated", syncMarkets);
-    window.addEventListener("storage", syncMarkets);
+  return null;
+};
+
+export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
+  const { address, isConnected, status } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const { profileName, walletAddress } = useProfile();
+  const [isMounted, setIsMounted] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const marketContract = deploymentFor(ConfidentialPredictionMarket, sepolia.id);
+  const tokenAddress = (marketContract?.address ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
+  const { data: isAllowed } = useIsAllowed({ contractAddresses: [tokenAddress] });
+
+  // Derived state from URL
+  const filter = (searchParams.get("filter") as CategoryFilter) || (source === "creator" ? "all" : "trending");
+  const sportsFilter = (searchParams.get("sport") as SportsFilter) || "all";
+
+  // Actions that update the URL (which updates the derived state)
+  const setFilter = (newFilter: CategoryFilter) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const defaultFilter = source === "creator" ? "all" : "trending";
+
+    if (newFilter === defaultFilter) {
+      params.delete("filter");
+    } else {
+      params.set("filter", newFilter);
+    }
+
+    if (newFilter !== filter) {
+      params.delete("sport");
+    }
+
+    const queryString = params.toString();
+    router.replace(queryString ? `?${queryString}` : window.location.pathname, { scroll: false });
+  };
+
+  const setSportsFilter = (newSport: SportsFilter) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newSport === "all") {
+      params.delete("sport");
+    } else {
+      params.set("sport", newSport);
+    }
+    const queryString = params.toString();
+    router.replace(queryString ? `?${queryString}` : window.location.pathname, { scroll: false });
+  };
+
+  const [creatorTab, setCreatorTab] = useState<"all" | "mine">("all");
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [shouldLoadOnchainData, setShouldLoadOnchainData] = useState(false);
+  const [onchainData, setOnchainData] = useState<OnchainMarketGridData>(emptyOnchainData);
+  const isCreatorMarketView = source === "creator";
+  const isWalletHydrating = !isMounted || status === "reconnecting" || status === "connecting";
+  const isWalletConnected = isMounted && isConnected;
+  const creatorKey = isWalletConnected ? (address || walletAddress || profileName).toLowerCase() : "";
+  const trendingLimit = 6;
+  const {
+    poolSnapshotsByMarketId: onchainPoolSnapshotsByMarketId,
+    probabilitiesByMarketId: onchainProbabilitiesByMarketId,
+    volumesByMarketId: onchainVolumesByMarketId,
+  } = onchainData;
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isCreatorMarketView || !isMounted || isLoading || !isWalletConnected || !isAllowed || markets.length === 0) {
+      setShouldLoadOnchainData(false);
+      if (isCreatorMarketView) setOnchainData(emptyOnchainData);
+      return;
+    }
+
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+    const idleCallback = window.requestIdleCallback;
+    if (idleCallback) {
+      idleId = idleCallback(() => setShouldLoadOnchainData(true), { timeout: 2_000 });
+    } else {
+      timeoutId = window.setTimeout(() => setShouldLoadOnchainData(true), 2_000);
+    }
 
     return () => {
-      window.removeEventListener("local-markets-updated", syncMarkets);
-      window.removeEventListener("storage", syncMarkets);
+      if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     };
-  }, [creatorKey, creatorTab, isCreatorMarketView]);
+  }, [isCreatorMarketView, isLoading, isMounted, markets.length, isWalletConnected, isAllowed]);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncMarkets = async () => {
+      setIsLoading(true);
+      setError("");
+      try {
+        const nextMarkets = await darkonnetApi.listMarkets();
+        if (!active) return;
+        setMarkets(nextMarkets);
+      } catch (err) {
+        if (!active) return;
+        setMarkets([]);
+        setError(err instanceof Error ? err.message : "Unable to load markets from the DarkONNET backend.");
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+
+    syncMarkets();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const visible = useMemo(() => {
-    if (isCreatorMarketView && creatorTab === "mine" && !isConnected) return [];
-    if (filter === "all") return markets;
-    if (filter === "trending") return markets.filter(m => m.trending);
-    return markets.filter(m => m.category === filter);
-  }, [creatorTab, filter, isConnected, isCreatorMarketView, markets]);
+    if (isCreatorMarketView && creatorTab === "mine" && !isWalletConnected) return [];
+    const sourceMarkets = isCreatorMarketView
+      ? markets.filter(market => {
+          const isAcceptedCreatorMarket = market.status === "open" && Boolean(market.creatorKey);
+          if (!isAcceptedCreatorMarket) return false;
+          if (creatorTab === "mine") return Boolean(creatorKey) && market.creatorKey?.toLowerCase() === creatorKey;
+          return true;
+        })
+      : markets;
+    if (filter === "all") return sourceMarkets;
+    if (filter === "trending") {
+      const hasOnchainVolumes = Object.keys(onchainVolumesByMarketId).length > 0;
+      const getRankVolume = (market: Market) => {
+        const onchainVolume = onchainVolumesByMarketId[market.id];
+        if (onchainVolume !== undefined) return Number(onchainVolume);
+        return hasOnchainVolumes ? -1 : getMarketVolumeScore(market);
+      };
+      const rankedMarkets = [...sourceMarkets].sort((a, b) => {
+        const volumeDelta = getRankVolume(b) - getRankVolume(a);
+        if (volumeDelta !== 0) return volumeDelta;
+        return a.question.localeCompare(b.question);
+      });
+      const hasVolume = rankedMarkets.some(market => getRankVolume(market) > 0);
+      return (hasVolume ? rankedMarkets.filter(market => getRankVolume(market) > 0) : rankedMarkets).slice(
+        0,
+        trendingLimit,
+      );
+    }
+    const categoryMarkets = sourceMarkets.filter(m => m.category === filter);
+    if (filter !== "sports" || sportsFilter === "all") return categoryMarkets;
+    return categoryMarkets.filter(m => m.sportType === sportsFilter);
+  }, [
+    creatorKey,
+    creatorTab,
+    filter,
+    isCreatorMarketView,
+    isWalletConnected,
+    markets,
+    onchainVolumesByMarketId,
+    sportsFilter,
+  ]);
 
   return (
     <section className="px-4 py-5 sm:px-6 sm:py-6">
+      {shouldLoadOnchainData && <OnchainMarketDataBridge markets={markets} onUpdate={setOnchainData} />}
+
       <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
@@ -61,19 +225,11 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
           </h1>
           <p className="mt-1 text-sm text-[#525252] dark:text-[#A1A1A1]">
             {isCreatorMarketView
-              ? "Community-created markets awaiting approval or live with 1% fees to creators."
+              ? "Community-created markets live with 1% fees to creators."
               : "Bet sizes and sides stay encrypted on-chain."}
           </p>
         </div>
-        {!isCreatorMarketView && (
-          <Link
-            href="/admin-market-requests"
-            className="smooth-action inline-flex h-10 w-fit cursor-pointer items-center justify-center gap-2 rounded-md bg-[#FFD60A] px-4 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
-          >
-            <ShieldCheck size={16} />
-            Admin Demo
-          </Link>
-        )}
+
       </header>
 
       {isCreatorMarketView && (
@@ -100,15 +256,52 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
       <CategoryTabs active={filter} onChange={setFilter} />
 
+      {filter === "sports" && (
+        <div className="mt-4 flex w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="inline-flex min-w-max rounded-md border border-[#E5E5E5] bg-white p-0.5 dark:border-[#1F1F1F] dark:bg-[#141414]">
+            {sportsFilters.map(option => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSportsFilter(option.id)}
+                className={`smooth-action h-9 rounded-[0.35rem] px-3 text-xs font-semibold sm:px-4 ${
+                  sportsFilter === option.id
+                    ? "bg-[#FFD60A] text-[#0A0A0A]"
+                    : "text-[#525252] hover:text-[#0A0A0A] dark:text-[#A1A1A1] dark:hover:text-[#FAFAFA]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 md:grid-cols-2 lg:grid-cols-3">
         {visible.map(market => (
-          <MarketCard key={market.id} market={market} />
+          <MarketCard
+            key={market.id}
+            market={market}
+            onchainPoolSnapshot={onchainPoolSnapshotsByMarketId[market.id]}
+            onchainProbability={onchainProbabilitiesByMarketId[market.id]}
+            onchainVolume={onchainVolumesByMarketId[market.id]}
+          />
         ))}
       </div>
 
-      {visible.length === 0 && (
+      {isLoading && (
+        <div className="py-12 text-center text-sm text-[#525252] dark:text-[#A1A1A1] sm:py-16">Loading Markets...</div>
+      )}
+
+      {!isLoading && error && (
+        <div className="py-12 text-center text-sm font-semibold text-[#DC2626] sm:py-16">{error}</div>
+      )}
+
+      {!isLoading && !error && visible.length === 0 && (
         <div className="py-12 text-center text-sm text-[#525252] dark:text-[#A1A1A1] sm:py-16">
-          {creatorTab === "mine" && !isConnected ? (
+          {creatorTab === "mine" && isWalletHydrating ? (
+            "Checking wallet connection..."
+          ) : creatorTab === "mine" && !isWalletConnected ? (
             <div className="mx-auto max-w-md rounded-lg border border-[#E5E5E5] bg-white p-5 dark:border-[#1F1F1F] dark:bg-[#141414]">
               <div className="font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">Connect wallet to view My Markets</div>
               <p className="mt-2 leading-6">Creator ownership is tied to your wallet profile.</p>
@@ -123,7 +316,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
           ) : creatorTab === "mine" ? (
             "You have not created any markets yet."
           ) : (
-            "No markets in this category yet. Check back soon."
+            "No markets are available in this category yet."
           )}
         </div>
       )}

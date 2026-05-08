@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useEncrypt } from "@zama-fhe/react-sdk";
 import {
   Bold,
   Calendar,
@@ -17,8 +18,13 @@ import {
   Underline,
   X,
 } from "lucide-react";
-import { useAccount } from "wagmi";
+import { bytesToHex, parseUnits } from "viem";
+import { useAccount, useChainId, useWriteContract } from "wagmi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 import { useProfile } from "~~/components/profile/ProfileContext";
+import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
+import { EncryptedERC20 } from "~~/contracts/EncryptedERC20";
+import { darkonnetApi } from "~~/lib/darkonnetApi";
 import {
   type CreateMarketDraft,
   clearCreateMarketDraft,
@@ -27,10 +33,12 @@ import {
   getCreateMarketDraft,
   getMarketRequestCooldown,
   saveCreateMarketDraft,
-  saveLocalMarket,
 } from "~~/lib/localMarkets";
 import type { MarketCategory } from "~~/lib/mockMarkets";
 import { PLATFORM_TOKEN_SYMBOL } from "~~/lib/token";
+import { wagmiConfig } from "~~/services/web3/wagmiConfig";
+import { sepolia } from "~~/utils/chains";
+import { deploymentFor } from "~~/utils/contract";
 
 const categories: Array<{ value: MarketCategory; label: string }> = [
   { value: "crypto", label: "Crypto" },
@@ -54,6 +62,9 @@ const toolbar = [
 ];
 
 const MAX_SOURCES = 10;
+const UINT64_MAX = 18_446_744_073_709_551_615n;
+const marketContract = deploymentFor(ConfidentialPredictionMarket, sepolia.id);
+const cUSDTContract = deploymentFor(EncryptedERC20, sepolia.id);
 
 const formatRemaining = (remainingMs: number) => {
   const hours = Math.floor(remainingMs / (1000 * 60 * 60));
@@ -73,20 +84,24 @@ const FieldTooltip = ({ label }: { label: string }) => (
 
 export default function CreateMarketPage() {
   const router = useRouter();
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
-  const { profileName, walletAddress } = useProfile();
-  const creatorKey = walletAddress || profileName;
+  const { writeContractAsync } = useWriteContract();
+  const encrypt = useEncrypt();
+  const { walletAddress } = useProfile();
+  const creatorKey = address || walletAddress;
   const [draft, setDraft] = useState<CreateMarketDraft>(() =>
     typeof window === "undefined" ? emptyCreateMarketDraft : getCreateMarketDraft(),
   );
   const [formMessage, setFormMessage] = useState("");
   const [submittedMarketId, setSubmittedMarketId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(() =>
     typeof window === "undefined" ? { canSubmit: true, remainingMs: 0 } : getMarketRequestCooldown(creatorKey),
   );
 
-  const creatorStake = useMemo(() => Number(draft.creatorStake) || 0, [draft.creatorStake]);
+  const creatorStake = 1;
 
   useEffect(() => {
     setCooldown(getMarketRequestCooldown(creatorKey));
@@ -135,10 +150,15 @@ export default function CreateMarketPage() {
     setFormMessage("Draft saved locally.");
   };
 
-  const submitMarket = () => {
+  const submitMarket = async () => {
     if (!isConnected) {
       setFormMessage("Connect your wallet to submit a market creation request.");
       openConnectModal?.();
+      return;
+    }
+
+    if (!creatorKey) {
+      setFormMessage("Your connected wallet address is still loading. Try again in a moment.");
       return;
     }
 
@@ -163,17 +183,105 @@ export default function CreateMarketPage() {
       return;
     }
 
-    if (creatorStake < 1) {
-      setFormMessage(`Add at least 1 ${PLATFORM_TOKEN_SYMBOL} from your wallet to submit a market creation request.`);
+    const activeSources = draft.sources.map(s => s.trim()).filter(Boolean);
+    const uniqueSources = new Set(activeSources);
+    if (uniqueSources.size !== activeSources.length) {
+      setFormMessage("Please remove duplicate source links before submitting.");
       return;
     }
 
-    const market = createMarketFromDraft(draft, { creatorKey });
-    saveLocalMarket(market);
-    setCooldown(getMarketRequestCooldown(creatorKey));
-    clearCreateMarketDraft();
-    setDraft(emptyCreateMarketDraft);
-    setSubmittedMarketId(market.id);
+    if (!marketContract || !cUSDTContract) {
+      setFormMessage("DarkONNET market contracts are not configured for Sepolia.");
+      return;
+    }
+    if (chainId !== sepolia.id) {
+      setFormMessage("Switch your wallet to Sepolia before submitting this market request.");
+      return;
+    }
+
+    let escrowedMarketId: bigint | undefined;
+    try {
+      setIsSubmitting(true);
+      const market = createMarketFromDraft(draft, { creatorKey });
+      if (!market.onchainMarketId) {
+        throw new Error("Unable to derive the on-chain market ID for this request.");
+      }
+
+      market.creatorStake = creatorStake;
+      const stakeUnits = parseUnits(String(creatorStake), 6);
+      if (stakeUnits <= 0n || stakeUnits > UINT64_MAX) {
+        throw new Error(`Enter a positive ${PLATFORM_TOKEN_SYMBOL} stake that fits the encrypted token limit.`);
+      }
+
+      setFormMessage("Encrypting creator stake approval...");
+      const approvalInput = await encrypt.mutateAsync({
+        values: [{ value: stakeUnits, type: "euint64" }],
+        contractAddress: cUSDTContract.address,
+        userAddress: creatorKey as `0x${string}`,
+      });
+
+      setFormMessage("Approving encrypted cUSDT stake...");
+      const approvalHash = await writeContractAsync({
+        address: cUSDTContract.address,
+        abi: cUSDTContract.abi,
+        functionName: "approve",
+        args: [
+          marketContract.address,
+          bytesToHex(approvalInput.handles[0]!) as `0x${string}`,
+          bytesToHex(approvalInput.inputProof) as `0x${string}`,
+        ],
+        chainId: sepolia.id,
+        gas: 15_000_000n,
+      });
+      await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, chainId: sepolia.id });
+
+      setFormMessage("Depositing encrypted creator stake...");
+
+      const stakeHash = await writeContractAsync({
+        address: marketContract.address,
+        abi: marketContract.abi,
+        functionName: "depositCreatorStake",
+        args: [BigInt(market.onchainMarketId)],
+        chainId: sepolia.id,
+        gas: 15_000_000n,
+      });
+      await waitForTransactionReceipt(wagmiConfig, { hash: stakeHash, chainId: sepolia.id });
+      escrowedMarketId = BigInt(market.onchainMarketId);
+      window.dispatchEvent(new Event("darkonnet:cusdt-balance-refresh"));
+
+      setFormMessage("Saving market request to backend...");
+      await darkonnetApi.upsertMarket(market);
+      setCooldown(getMarketRequestCooldown(creatorKey));
+      clearCreateMarketDraft();
+      setDraft(emptyCreateMarketDraft);
+      setSubmittedMarketId(market.id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to submit this market to the backend.";
+      if (escrowedMarketId && marketContract) {
+        try {
+          setFormMessage("Backend request failed after funding. Returning creator stake...");
+          const withdrawHash = await writeContractAsync({
+            address: marketContract.address,
+            abi: marketContract.abi,
+            functionName: "withdrawCreatorStake",
+            args: [escrowedMarketId],
+            chainId: sepolia.id,
+            gas: 3_000_000n,
+          });
+          await waitForTransactionReceipt(wagmiConfig, { hash: withdrawHash, chainId: sepolia.id });
+          window.dispatchEvent(new Event("darkonnet:cusdt-balance-refresh"));
+          setFormMessage(`${message} Creator stake was returned.`);
+        } catch {
+          setFormMessage(
+            `${message} Creator stake is escrowed on-chain; withdraw it before resubmitting this exact request.`,
+          );
+        }
+      } else {
+        setFormMessage(message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -384,8 +492,8 @@ export default function CreateMarketPage() {
 
             <div className="rounded-md border border-[#E5E5E5] bg-[#F8FAFC] p-4 text-sm leading-6 text-[#525252] dark:border-[#1F1F1F] dark:bg-[#0A0A0A] dark:text-[#A1A1A1]">
               Market creation requests require a minimum 1 {PLATFORM_TOKEN_SYMBOL} wallet-backed stake. The request
-              stays pending until an admin approves it, users can only submit one request every 24 hours, and approved
-              creator markets earn 1% of each trade back to the creator wallet.
+              deposits that stake into the prediction market escrow, stays pending until an admin approves it, and
+              approved creator markets earn 1% of each trade back to the creator wallet.
             </div>
 
             <div className="grid gap-5 md:grid-cols-3">
@@ -393,23 +501,18 @@ export default function CreateMarketPage() {
                 <span className="flex items-center gap-2 text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
                   Creator Stake
                   <FieldTooltip
-                    label={`Minimum ${PLATFORM_TOKEN_SYMBOL} amount the market creator must put from their Sepolia wallet before submitting the request. Backend should collect this through the wallet flow.`}
+                    label={`Minimum ${PLATFORM_TOKEN_SYMBOL} amount deposited as encrypted escrow before the backend request is saved.`}
                   />
                 </span>
                 <input
                   type="number"
                   min="1"
                   step="1"
-                  value={draft.creatorStake}
-                  onChange={event => updateDraft("creatorStake", event.target.value)}
+                  value="1"
+                  readOnly
                   placeholder="1"
-                  className="mt-2 h-11 w-full rounded-md border border-[#CBD5E1] bg-white px-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
+                  className="mt-2 h-11 w-full rounded-md border border-[#CBD5E1] bg-[#F8FAFC] px-4 text-sm text-[#0A0A0A] outline-none dark:border-[#334155] dark:bg-[#020817] dark:text-[#FAFAFA]"
                 />
-                {creatorStake < 1 && (
-                  <span className="mt-2 block text-xs font-semibold text-[#DC2626]">
-                    Minimum is 1 {PLATFORM_TOKEN_SYMBOL}.
-                  </span>
-                )}
               </label>
               <div className="block">
                 <span className="flex items-center gap-2 text-sm font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
@@ -448,12 +551,14 @@ export default function CreateMarketPage() {
               <button
                 type="button"
                 onClick={submitMarket}
-                disabled={!cooldown.canSubmit}
-                className="smooth-action h-11 cursor-pointer rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
+                disabled={!cooldown.canSubmit || isSubmitting}
+                className="smooth-action h-11 cursor-pointer rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {cooldown.canSubmit
-                  ? "Submit And Fund Request"
-                  : `Available In ${formatRemaining(cooldown.remainingMs)}`}
+                {isSubmitting
+                  ? "Funding Request..."
+                  : cooldown.canSubmit
+                    ? "Submit And Fund Request"
+                    : `Available In ${formatRemaining(cooldown.remainingMs)}`}
               </button>
             </div>
           </div>

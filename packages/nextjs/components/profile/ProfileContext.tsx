@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { type ApiProfile, darkonnetApi } from "~~/lib/darkonnetApi";
 
 type ProfileContextValue = {
   profileName: string;
@@ -11,10 +12,12 @@ type ProfileContextValue = {
   receivePositionNotifications: boolean;
   walletAddress: string;
   needsUsername: boolean;
+  isProfileLoading: boolean;
+  profileError: string;
   loadWalletProfile: (address?: string) => void;
   setProfileName: (name: string) => void;
-  saveUsernameForWallet: (name: string) => void;
-  saveProfile: (profile: ProfileSettings) => void;
+  saveUsernameForWallet: (name: string) => Promise<void>;
+  saveProfile: (profile: ProfileSettings) => Promise<void>;
   clearProfileName: () => void;
 };
 
@@ -49,12 +52,24 @@ const cleanProfile = (profile: ProfileSettings): ProfileSettings => ({
   receivePositionNotifications: profile.receivePositionNotifications,
 });
 
+const profileFromApi = (profile: ApiProfile): ProfileSettings => ({
+  profileName: profile.profileName,
+  bio: profile.bio,
+  email: profile.email,
+  profileImageDataUrl: profile.profileImageDataUrl,
+  receiveUpdates: profile.receiveUpdates,
+  receivePositionNotifications: profile.receivePositionNotifications,
+});
+
 const getWalletStorageKey = (address: string) => `profile:wallet:${address.toLowerCase()}`;
 
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<ProfileSettings>(defaultProfile);
   const [walletAddress, setWalletAddress] = useState("");
   const [needsUsername, setNeedsUsername] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const loadRequestId = useRef(0);
 
   useEffect(() => {
     const storedProfile = window.localStorage.getItem(PROFILE_STORAGE_KEY);
@@ -81,58 +96,116 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     [walletAddress],
   );
 
-  const loadWalletProfile = useCallback((address?: string) => {
-    if (!address) {
-      setWalletAddress("");
-      setNeedsUsername(false);
-      return;
-    }
+  const loadWalletProfile = useCallback(
+    (address?: string) => {
+      const requestId = loadRequestId.current + 1;
+      loadRequestId.current = requestId;
 
-    const normalizedAddress = address.toLowerCase();
-    const storedProfile = window.localStorage.getItem(getWalletStorageKey(normalizedAddress));
-    setWalletAddress(normalizedAddress);
-
-    if (storedProfile) {
-      try {
-        const nextProfile = { ...defaultProfile, ...JSON.parse(storedProfile) };
-        setProfile(nextProfile);
-        setNeedsUsername(!nextProfile.profileName);
+      if (!address) {
+        setWalletAddress("");
+        setNeedsUsername(false);
+        setIsProfileLoading(false);
+        setProfileError("");
         return;
-      } catch {
-        window.localStorage.removeItem(getWalletStorageKey(normalizedAddress));
       }
-    }
 
-    setProfile(defaultProfile);
-    setNeedsUsername(true);
-  }, []);
+      const normalizedAddress = address.toLowerCase();
+      const storedProfile = window.localStorage.getItem(getWalletStorageKey(normalizedAddress));
+      let cachedProfile: ProfileSettings | null = null;
+      setWalletAddress(normalizedAddress);
+      setProfileError("");
 
-  const saveProfile = useCallback(
-    (nextProfile: ProfileSettings) => {
-      const clean = cleanProfile(nextProfile);
-      setProfile(clean);
-      persistProfile(clean);
-      setNeedsUsername(!clean.profileName);
+      if (storedProfile) {
+        try {
+          const nextCachedProfile = { ...defaultProfile, ...JSON.parse(storedProfile) } as ProfileSettings;
+          cachedProfile = nextCachedProfile;
+          setProfile(nextCachedProfile);
+          setNeedsUsername(!nextCachedProfile.profileName);
+        } catch {
+          window.localStorage.removeItem(getWalletStorageKey(normalizedAddress));
+        }
+      } else {
+        setProfile(defaultProfile);
+        setNeedsUsername(false);
+      }
+
+      setIsProfileLoading(true);
+      darkonnetApi
+        .getProfile(normalizedAddress)
+        .then(apiProfile => {
+          if (loadRequestId.current !== requestId) return;
+          const nextProfile = profileFromApi(apiProfile);
+          const profileToMigrate = cachedProfile?.profileName ? cachedProfile : null;
+          if (!nextProfile.profileName && profileToMigrate) {
+            return darkonnetApi.saveProfile(normalizedAddress, profileToMigrate).then(savedProfile => {
+              if (loadRequestId.current !== requestId) return;
+              const migratedProfile = profileFromApi(savedProfile);
+              setProfile(migratedProfile);
+              persistProfile(migratedProfile, normalizedAddress);
+              setNeedsUsername(!migratedProfile.profileName);
+            });
+          }
+
+          setProfile(nextProfile);
+          persistProfile(nextProfile, normalizedAddress);
+          setNeedsUsername(!nextProfile.profileName);
+        })
+        .catch(error => {
+          if (loadRequestId.current !== requestId) return;
+          setProfileError(error instanceof Error ? error.message : "Unable to load backend profile.");
+          setNeedsUsername(!storedProfile);
+        })
+        .finally(() => {
+          if (loadRequestId.current === requestId) setIsProfileLoading(false);
+        });
     },
     [persistProfile],
   );
 
+  const saveProfile = useCallback(
+    async (nextProfile: ProfileSettings) => {
+      const clean = cleanProfile(nextProfile);
+      if (!walletAddress) {
+        setProfile(clean);
+        persistProfile(clean);
+        setNeedsUsername(!clean.profileName);
+        return;
+      }
+
+      setIsProfileLoading(true);
+      setProfileError("");
+      try {
+        const savedProfile = await darkonnetApi.saveProfile(walletAddress, clean);
+        const nextSavedProfile = profileFromApi(savedProfile);
+        setProfile(nextSavedProfile);
+        persistProfile(nextSavedProfile, walletAddress);
+        setNeedsUsername(!nextSavedProfile.profileName);
+      } catch (error) {
+        setProfileError(error instanceof Error ? error.message : "Unable to save backend profile.");
+        throw error;
+      } finally {
+        setIsProfileLoading(false);
+      }
+    },
+    [persistProfile, walletAddress],
+  );
+
   const saveUsernameForWallet = useCallback(
-    (name: string) => {
-      saveProfile({ ...profile, profileName: name });
+    async (name: string) => {
+      await saveProfile({ ...profile, profileName: name });
     },
     [profile, saveProfile],
   );
 
   const setProfileName = useCallback(
     (name: string) => {
-      saveProfile({ ...profile, profileName: name });
+      void saveProfile({ ...profile, profileName: name });
     },
     [profile, saveProfile],
   );
 
   const clearProfileName = useCallback(() => {
-    saveProfile({ ...profile, profileName: "" });
+    void saveProfile({ ...profile, profileName: "" });
     window.localStorage.removeItem(NAME_STORAGE_KEY);
   }, [profile, saveProfile]);
 
@@ -141,6 +214,8 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       ...profile,
       walletAddress,
       needsUsername,
+      isProfileLoading,
+      profileError,
       loadWalletProfile,
       setProfileName,
       saveUsernameForWallet,
@@ -150,8 +225,10 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
   }, [
     clearProfileName,
     loadWalletProfile,
+    isProfileLoading,
     needsUsername,
     profile,
+    profileError,
     saveProfile,
     saveUsernameForWallet,
     setProfileName,

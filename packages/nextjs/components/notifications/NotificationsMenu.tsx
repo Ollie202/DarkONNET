@@ -1,15 +1,21 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Bell } from "lucide-react";
+import { useAccount } from "wagmi";
 import { useNotifications } from "~~/components/notifications/NotificationsContext";
 import { useOutsideClick } from "~~/hooks/helper";
 
 export const NotificationsMenu = () => {
-  const { notifications, unreadCount, markAsRead } = useNotifications();
+  const { address } = useAccount();
+  const { notifications, unreadCount, connectWalletNotifications, markAsRead } = useNotifications();
   const dropdownRef = useRef<HTMLDetailsElement>(null);
 
   useOutsideClick(dropdownRef, () => dropdownRef.current?.removeAttribute("open"));
+
+  useEffect(() => {
+    connectWalletNotifications(address);
+  }, [address, connectWalletNotifications]);
 
   return (
     <details ref={dropdownRef} className="dropdown dropdown-end relative z-[100]">
@@ -30,6 +36,11 @@ export const NotificationsMenu = () => {
         </div>
 
         <div className="max-h-96 overflow-y-auto">
+          {notifications.length === 0 && (
+            <div className="px-4 py-6 text-sm text-[#525252] dark:text-[#A1A1A1]">
+              {address ? "No Notifications yet" : "Connect wallet to load notifications."}
+            </div>
+          )}
           {notifications.map(notification => (
             <button
               key={notification.id}

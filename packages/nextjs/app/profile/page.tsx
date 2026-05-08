@@ -22,6 +22,7 @@ export default function ProfilePage() {
   });
   const [savedSnapshot, setSavedSnapshot] = useState(profileSnapshot(draft));
   const [hasConfirmed, setHasConfirmed] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     const nextDraft = {
@@ -60,10 +61,15 @@ export default function ProfilePage() {
     reader.readAsDataURL(file);
   };
 
-  const save = () => {
-    profile.saveProfile(draft);
-    setSavedSnapshot(profileSnapshot(draft));
-    setHasConfirmed(true);
+  const save = async () => {
+    try {
+      setSaveError("");
+      await profile.saveProfile(draft);
+      setSavedSnapshot(profileSnapshot(draft));
+      setHasConfirmed(true);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Unable to save profile.");
+    }
   };
 
   useEffect(() => {
@@ -242,15 +248,18 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex min-h-11 items-center justify-end">
+                {(saveError || profile.profileError) && (
+                  <span className="mr-3 text-sm font-semibold text-[#DC2626]">{saveError || profile.profileError}</span>
+                )}
                 {isDirty ? (
                   <button
                     type="button"
                     onClick={save}
-                    disabled={!draft.profileName.trim()}
+                    disabled={!draft.profileName.trim() || profile.isProfileLoading}
                     className="smooth-action inline-flex h-11 cursor-pointer items-center gap-2 rounded-md bg-[#FFD60A] px-5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#FFD60A]/90"
                   >
                     <Check size={17} />
-                    Save Profile
+                    {profile.isProfileLoading ? "Saving Profile" : "Save Profile"}
                   </button>
                 ) : hasConfirmed ? (
                   <span className="text-sm font-semibold text-[#16A34A] dark:text-[#22C55E]">Profile saved</span>
