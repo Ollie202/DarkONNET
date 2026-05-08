@@ -256,12 +256,32 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
   useEffect(() => {
     let active = true;
+    const supabase = createClient();
 
     const loadComments = async () => {
       try {
         setCommentsMessage("");
-        const backendComments = await darkonnetApi.listComments(market.id);
-        if (active) setComments(flattenComments(backendComments, activeCommentWalletAddress));
+        const { data: backendComments, error: fetchError } = await supabase
+          .from("comments")
+          .select("*")
+          .eq("market_id", market.id)
+          .order("created_at", { ascending: true });
+
+        if (fetchError) throw fetchError;
+        if (active && backendComments) {
+          const mapped: MarketComment[] = backendComments.map(c => ({
+            id: c.id,
+            author: c.display_name,
+            walletAddress: c.wallet_address,
+            createdAt: new Date(c.created_at).getTime(),
+            time: relativeTime(c.created_at),
+            text: c.body,
+            likes: c.liked_by?.length || 0,
+            liked: Boolean(activeCommentWalletAddress && c.liked_by?.includes(activeCommentWalletAddress)),
+            parentId: c.parent_id,
+          }));
+          setComments(mapped);
+        }
       } catch (err) {
         if (active) setCommentsMessage(err instanceof Error ? err.message : "Unable to load backend comments.");
       }
@@ -269,8 +289,24 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
     loadComments();
 
+    const channel = supabase
+      .channel(`market-detail:${market.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "comments", filter: `market_id=eq.${market.id}` },
+        () => {
+          loadComments();
+        },
+      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "markets", filter: `market_id=eq.${market.id}` }, payload => {
+        // Handle market status/metadata updates if needed
+        console.log("Market updated:", payload.new);
+      })
+      .subscribe();
+
     return () => {
       active = false;
+      supabase.removeChannel(channel);
     };
   }, [activeCommentWalletAddress, market.id]);
 
@@ -315,14 +351,17 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       return;
     }
 
+    const supabase = createClient();
     try {
-      await darkonnetApi.createComment({
-        marketId: market.id,
-        walletAddress: commentWalletAddress,
-        displayName: currentProfileName,
+      const { error: postError } = await supabase.from("comments").insert({
+        market_id: market.id,
+        wallet_address: commentWalletAddress.toLowerCase(),
+        display_name: currentProfileName,
         body: text,
       });
-      setComments(flattenComments(await darkonnetApi.listComments(market.id), activeCommentWalletAddress));
+
+      if (postError) throw postError;
+
       setCommentDraft("");
       setCommentSort("new");
       setCommentsMessage("");
@@ -346,14 +385,17 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     const parentId = parentComment?.parentId ?? targetId;
     const replyAuthor = currentProfileName;
 
+    const supabase = createClient();
     try {
-      await darkonnetApi.createComment({
-        marketId: market.id,
-        walletAddress: commentWalletAddress,
-        displayName: replyAuthor,
+      const { error: postError } = await supabase.from("comments").insert({
+        market_id: market.id,
+        wallet_address: commentWalletAddress.toLowerCase(),
+        display_name: replyAuthor,
         body: text,
-        parentId,
+        parent_id: parentId,
       });
+
+      if (postError) throw postError;
 
       if (parentAuthor === currentProfileName) {
         addNotification({
@@ -363,7 +405,6 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
         });
       }
 
-      setComments(flattenComments(await darkonnetApi.listComments(market.id), activeCommentWalletAddress));
       setReplyDrafts(prev => ({ ...prev, [targetId]: "" }));
       setReplyingTo(null);
       setExpandedThreads(prev => ({ ...prev, [parentId]: true }));
@@ -383,39 +424,25 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     }
 
     const nextLiked = !comment.liked;
-    setComments(prev =>
-      prev.map(comment =>
-        comment.id === commentId
-          ? {
-              ...comment,
-              liked: nextLiked,
-              likes: nextLiked ? comment.likes + 1 : Math.max(0, comment.likes - 1),
-            }
-          : comment,
-      ),
-    );
+    const supabase = createClient();
 
     try {
-      await darkonnetApi.setCommentLike({
-        marketId: market.id,
-        commentId,
-        walletAddress: activeCommentWalletAddress,
-        liked: nextLiked,
-      });
-      setComments(flattenComments(await darkonnetApi.listComments(market.id), activeCommentWalletAddress));
+      const { data: currentComment } = await supabase.from("comments").select("liked_by").eq("id", commentId).single();
+
+      let likedBy = currentComment?.liked_by || [];
+      if (nextLiked) {
+        if (!likedBy.includes(activeCommentWalletAddress)) {
+          likedBy.push(activeCommentWalletAddress);
+        }
+      } else {
+        likedBy = likedBy.filter((w: string) => w !== activeCommentWalletAddress);
+      }
+
+      const { error: updateError } = await supabase.from("comments").update({ liked_by: likedBy }).eq("id", commentId);
+
+      if (updateError) throw updateError;
       setCommentsMessage("");
     } catch (err) {
-      setComments(prev =>
-        prev.map(comment =>
-          comment.id === commentId
-            ? {
-                ...comment,
-                liked: !nextLiked,
-                likes: nextLiked ? Math.max(0, comment.likes - 1) : comment.likes + 1,
-              }
-            : comment,
-        ),
-      );
       setCommentsMessage(err instanceof Error ? err.message : "Unable to update comment like.");
     }
   };

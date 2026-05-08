@@ -1,20 +1,8 @@
-"use client";
-
 import { type LocalMarket } from "~~/lib/localMarkets";
 import { type Market, type MarketCategory, parseMarketVolume } from "~~/lib/mockMarkets";
+import { createClient } from "~~/utils/supabase/client";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_DARKONNET_API_URL || "http://localhost:8787").replace(/\/$/, "");
-const SESSION_STORAGE_PREFIX = "darkonnet:api-session:";
-
-type EthereumProvider = {
-  request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-};
-
-type ApiSession = {
-  token: string;
-  walletAddress: string;
-  expiresAt: string;
-};
+const supabase = createClient();
 
 export type ApiMarket = {
   marketId: string;
@@ -146,100 +134,10 @@ const stringArrayFromMetadata = (metadata: Record<string, unknown> | undefined, 
 
 const isHttpUrl = (value?: string) => Boolean(value && /^https?:\/\//i.test(value));
 
-const f1CoverImages: Array<{ pattern: RegExp; imageUrl: string }> = [
-  {
-    pattern: /monaco|monte.?carlo/,
-    imageUrl: "https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /canada|montreal|gilles.?villeneuve/,
-    imageUrl: "https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /british|silverstone|united kingdom|great britain/,
-    imageUrl: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /italy|italian|monza|emilia|imola/,
-    imageUrl: "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /japan|suzuka/,
-    imageUrl: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /singapore|marina bay/,
-    imageUrl: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /australia|melbourne|albert park/,
-    imageUrl: "https://images.unsplash.com/photo-1545044846-351ba102b6d5?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /bahrain|sakhir/,
-    imageUrl: "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /saudi|jeddah/,
-    imageUrl: "https://images.unsplash.com/photo-1586724237569-f3d0c1dee8c6?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /miami|united states|austin|las vegas|cota|americas/,
-    imageUrl: "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /spain|spanish|barcelona|catalunya/,
-    imageUrl: "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /belgium|spa/,
-    imageUrl: "https://images.unsplash.com/photo-1470124182917-cc6e71b22ecc?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /netherlands|dutch|zandvoort/,
-    imageUrl: "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /hungary|hungarian|hungaroring|budapest/,
-    imageUrl: "https://images.unsplash.com/photo-1541849546-216549ae216d?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /qatar|lusail/,
-    imageUrl: "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    pattern: /abu dhabi|yas marina|united arab emirates/,
-    imageUrl: "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=1200&q=80",
-  },
-];
-
-const genericF1CoverImage =
-  "https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1200&q=80";
-
-const getF1CoverImage = (market: ApiMarket, metadata: Record<string, unknown>) => {
-  if (normalizeSportType(market) !== "formula1") return undefined;
-
-  const searchableText = [
-    market.title,
-    market.description,
-    market.leagueName,
-    market.provider,
-    metadata.circuit,
-    metadata.country,
-    metadata.location,
-  ]
-    .filter((value): value is string => typeof value === "string")
-    .join(" ")
-    .toLowerCase();
-
-  return f1CoverImages.find(entry => entry.pattern.test(searchableText))?.imageUrl || genericF1CoverImage;
-};
-
 const mapApiMarket = (market: ApiMarket): Market => {
   const metadata = market.metadata || {};
   const category = normalizeCategory(market.category);
   const sportType = category === "sports" ? normalizeSportType(market) : undefined;
-  const f1CoverImage = getF1CoverImage(market, metadata);
   const probability = numberFromMetadata(metadata, ["yesProbability", "probability", "odds"], 0.5);
   const boundedProbability =
     probability > 1 ? Math.min(1, probability / 100) : Math.min(0.99, Math.max(0.01, probability));
@@ -279,7 +177,7 @@ const mapApiMarket = (market: ApiMarket): Market => {
       (typeof metadata.signalLabel === "string" && metadata.signalLabel) ||
       market.provider ||
       market.sourceName ||
-      "Backend market metadata",
+      "Supabase market metadata",
     sentimentSignals: {
       news: numberFromMetadata(metadata, ["newsSignal", "news"], Math.round(boundedProbability * 100)),
       volume: numberFromMetadata(metadata, ["volumeSignal"], Math.round(boundedProbability * 100)),
@@ -292,9 +190,6 @@ const mapApiMarket = (market: ApiMarket): Market => {
       : stringArrayFromMetadata(metadata, "sources"),
     coverImageDataUrl:
       market.imageUrl ||
-      f1CoverImage ||
-      market.homeLogoUrl ||
-      market.leagueLogoUrl ||
       (typeof metadata.coverImageDataUrl === "string" ? metadata.coverImageDataUrl : undefined),
     homeLogoUrl: market.homeLogoUrl || undefined,
     awayLogoUrl: market.awayLogoUrl || undefined,
@@ -307,7 +202,7 @@ const mapApiMarket = (market: ApiMarket): Market => {
     adminNote: typeof metadata.adminNote === "string" ? metadata.adminNote : undefined,
     resolution:
       market.resolution === "yes" || market.resolution === "no" || market.resolution === "canceled"
-        ? market.resolution
+        ? market.resolution as any
         : undefined,
     resolvedAt: market.resolvedAt || undefined,
     token: typeof metadata.token === "string" ? metadata.token : "cUSDT",
@@ -318,264 +213,146 @@ const mapApiMarket = (market: ApiMarket): Market => {
   };
 };
 
-const getEthereum = () => (globalThis as { ethereum?: EthereumProvider }).ethereum;
-
-const sessionStorageKey = (walletAddress: string) => `${SESSION_STORAGE_PREFIX}${walletAddress.toLowerCase()}`;
-
-const readStoredSession = (walletAddress: string): ApiSession | null => {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(sessionStorageKey(walletAddress));
-  if (!raw) return null;
-
-  try {
-    const session = JSON.parse(raw) as ApiSession;
-    if (
-      session.walletAddress?.toLowerCase() !== walletAddress.toLowerCase() ||
-      !session.token ||
-      Date.parse(session.expiresAt) <= Date.now() + 30_000
-    ) {
-      window.localStorage.removeItem(sessionStorageKey(walletAddress));
-      return null;
-    }
-    return session;
-  } catch {
-    window.localStorage.removeItem(sessionStorageKey(walletAddress));
-    return null;
-  }
-};
-
-const storeSession = (session: ApiSession) => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(sessionStorageKey(session.walletAddress), JSON.stringify(session));
-};
-
-const clearStoredSession = (walletAddress: string) => {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(sessionStorageKey(walletAddress));
-};
-
-const signPersonalMessage = async (message: string, walletAddress: string) => {
-  const ethereum = getEthereum();
-  if (!ethereum?.request) {
-    throw new Error("Wallet auth requires a browser wallet.");
-  }
-
-  const signature = await ethereum.request({
-    method: "personal_sign",
-    params: [message, walletAddress],
-  });
-
-  if (typeof signature !== "string") {
-    throw new Error("Wallet did not return a request signature.");
-  }
-
-  return signature;
-};
-
-const loginSession = async (walletAddress: string): Promise<ApiSession> => {
-  const normalizedWallet = walletAddress.toLowerCase();
-  const nonceResponse = await fetch(`${API_BASE_URL}/api/auth/nonce`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ walletAddress: normalizedWallet }),
-  });
-  if (!nonceResponse.ok) {
-    const body = await nonceResponse.json().catch(() => ({}));
-    throw new Error(typeof body.error === "string" ? body.error : "Unable to start wallet login.");
-  }
-
-  const challenge = (await nonceResponse.json()) as { nonce: string; message: string };
-  const signature = await signPersonalMessage(challenge.message, walletAddress);
-  const loginResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ walletAddress: normalizedWallet, nonce: challenge.nonce, signature }),
-  });
-  if (!loginResponse.ok) {
-    const body = await loginResponse.json().catch(() => ({}));
-    throw new Error(typeof body.error === "string" ? body.error : "Unable to complete wallet login.");
-  }
-
-  const { session } = (await loginResponse.json()) as { session: ApiSession };
-  storeSession(session);
-  return session;
-};
-
-const ensureSession = async (walletAddress?: string): Promise<ApiSession | null> => {
-  if (!walletAddress) return null;
-  return readStoredSession(walletAddress) || loginSession(walletAddress);
-};
-
-const requestAuthHeaders = async (walletAddress?: string): Promise<Record<string, string>> => {
-  const session = await ensureSession(walletAddress);
-  if (!session) return {};
-  return { Authorization: `Bearer ${session.token}` };
-};
-
-const request = async <T>(
-  path: string,
-  init?: RequestInit,
-  authWalletAddress?: string,
-  retried = false,
-): Promise<T> => {
-  const headers = new Headers(init?.headers);
-  headers.set("Content-Type", "application/json");
-  const authHeaders = await requestAuthHeaders(authWalletAddress);
-  Object.entries(authHeaders).forEach(([key, value]) => headers.set(key, value));
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    if (response.status === 401 && authWalletAddress && !retried) {
-      clearStoredSession(authWalletAddress);
-      return request(path, init, authWalletAddress, true);
-    }
-    throw new Error(typeof body.error === "string" ? body.error : `DarkONNET API request failed: ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
-};
+const mapSupabaseMarketToApi = (m: any): ApiMarket => ({
+  marketId: m.market_id,
+  onchainMarketId: m.onchain_market_id,
+  slug: m.slug,
+  category: m.category,
+  title: m.title,
+  description: m.description,
+  provider: m.provider,
+  imageUrl: m.image_url,
+  homeName: m.home_name,
+  awayName: m.away_name,
+  homeLogoUrl: m.home_logo_url,
+  awayLogoUrl: m.away_logo_url,
+  leagueName: m.league_name,
+  leagueLogoUrl: m.league_logo_url,
+  sourceUrl: m.source_url,
+  sourceName: m.source_name,
+  startsAt: m.starts_at,
+  creatorWalletAddress: m.creator_wallet_address,
+  status: m.status,
+  acceptedAt: m.accepted_at,
+  resolvedAt: m.resolved_at,
+  resolution: m.resolution,
+  participants: m.participants,
+  metadata: m.metadata,
+  createdAt: m.created_at,
+  updatedAt: m.updated_at,
+});
 
 export const darkonnetApi = {
-  baseUrl: API_BASE_URL,
+  baseUrl: "supabase",
   wsNotificationsUrl(walletAddress: string) {
-    const wsBase = API_BASE_URL.replace(/^http/, "ws");
-    return `${wsBase}/ws/notifications?walletAddress=${encodeURIComponent(walletAddress)}`;
+    return `supabase-realtime:${walletAddress}`;
   },
   async authenticatedWsNotificationsUrl(walletAddress: string) {
-    const wsBase = API_BASE_URL.replace(/^http/, "ws");
-    const path = "/ws/notifications";
-    const session = await ensureSession(walletAddress);
-    if (!session) throw new Error("Wallet auth requires a browser wallet.");
-
-    return `${wsBase}${path}?walletAddress=${encodeURIComponent(walletAddress.toLowerCase())}&authSession=${encodeURIComponent(
-      session.token,
-    )}`;
+    return `supabase-realtime:${walletAddress}`;
   },
   async listMarkets(options: { includeEnded?: boolean } = {}) {
-    const path = options.includeEnded ? "/api/markets?includeEnded=true" : "/api/markets";
-    const { markets } = await request<{ markets: ApiMarket[] }>(path);
-    return markets.map(mapApiMarket);
+    let query = supabase.from("markets").select("*");
+    if (!options.includeEnded) {
+      // Filter logic if needed, but usually we handle in UI
+    }
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data || []).map(mapSupabaseMarketToApi).map(mapApiMarket);
   },
   async getMarket(marketId: string) {
-    const { market } = await request<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}`);
-    return mapApiMarket(market);
+    const { data, error } = await supabase
+      .from("markets")
+      .select("*")
+      .or(`market_id.eq.${marketId},onchain_market_id.eq.${marketId}`)
+      .single();
+    if (error) throw error;
+    return mapApiMarket(mapSupabaseMarketToApi(data));
   },
   async upsertMarket(input: LocalMarket) {
     const backendMarketId = input.onchainMarketId || input.id;
-    const { market } = await request<{ market: ApiMarket }>(
-      `/api/markets/${encodeURIComponent(backendMarketId)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          marketId: backendMarketId,
-          onchainMarketId: input.onchainMarketId,
-          slug: input.slug,
-          category: input.category,
-          title: input.question,
-          imageUrl: isHttpUrl(input.coverImageDataUrl) ? input.coverImageDataUrl : undefined,
-          creatorWalletAddress: input.creatorKey || undefined,
-          status: input.status === "open" ? "accepted" : input.status,
-          startsAt: input.endsAt,
-          sourceUrl: input.sources[0],
-          metadata: {
-            rules: input.rules,
-            sources: input.sources,
-            creatorStake: input.creatorStake,
-            token: input.token,
-            yesProbability: input.yesProbability,
-            encryptedVolumeLabel: input.encryptedVolumeLabel,
-            tradingVolume: input.tradingVolume,
-            signalLabel: input.signalLabel,
-            adminNote: input.adminNote,
-            coverImageDataUrl: input.coverImageDataUrl,
-          },
-        }),
+    const marketData = {
+      market_id: backendMarketId,
+      onchain_market_id: input.onchainMarketId,
+      slug: input.slug,
+      category: input.category,
+      title: input.question,
+      image_url: isHttpUrl(input.coverImageDataUrl) ? input.coverImageDataUrl : undefined,
+      creator_wallet_address: input.creatorKey || undefined,
+      status: input.status === "open" ? "accepted" : input.status,
+      starts_at: input.endsAt,
+      source_url: input.sources[0],
+      metadata: {
+        rules: input.rules,
+        sources: input.sources,
+        creatorStake: input.creatorStake,
+        token: input.token,
+        yesProbability: input.yesProbability,
+        encryptedVolumeLabel: input.encryptedVolumeLabel,
+        tradingVolume: input.tradingVolume,
+        signalLabel: input.signalLabel,
+        adminNote: input.adminNote,
+        coverImageDataUrl: input.coverImageDataUrl,
       },
-      input.creatorKey,
-    );
-    return mapApiMarket(market);
+    };
+
+    const { data, error } = await supabase.from("markets").upsert(marketData).select().single();
+    if (error) throw error;
+    return mapApiMarket(mapSupabaseMarketToApi(data));
   },
-  async updateMarketStatus(marketId: string, status: "open" | "declined", adminNote = "", adminWalletAddress?: string) {
-    const current = await darkonnetApi.getMarket(marketId);
-    const { market } = await request<{ market: ApiMarket }>(
-      `/api/markets/${encodeURIComponent(marketId)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          marketId,
-          onchainMarketId: current.onchainMarketId,
-          slug: current.slug,
-          category: current.category,
-          title: current.question,
-          imageUrl: isHttpUrl(current.coverImageDataUrl) ? current.coverImageDataUrl : undefined,
-          creatorWalletAddress: current.creatorKey,
-          status: status === "open" ? "accepted" : "declined",
-          startsAt: current.endsAt,
-          metadata: {
-            rules: current.rules,
-            sources: current.sources || [],
-            yesProbability: current.yesProbability,
-            encryptedVolumeLabel: current.encryptedVolumeLabel,
-            tradingVolume: current.tradingVolume,
-            signalLabel: current.signalLabel,
-            adminNote,
-            coverImageDataUrl: current.coverImageDataUrl,
-          },
-        }),
-      },
-      adminWalletAddress,
-    );
-    return mapApiMarket(market);
+  async updateMarketStatus(marketId: string, status: "open" | "declined", adminNote = "", _adminWalletAddress?: string) {
+    const { data, error } = await supabase
+      .from("markets")
+      .update({
+        status: status === "open" ? "accepted" : "declined",
+        metadata: { adminNote },
+      })
+      .eq("market_id", marketId)
+      .select()
+      .single();
+    if (error) throw error;
+    return mapApiMarket(mapSupabaseMarketToApi(data));
   },
   async resolveMarket(
     marketId: string,
     resolution: "yes" | "no" | "canceled",
     adminNote = "",
-    adminWalletAddress?: string,
+    _adminWalletAddress?: string,
   ) {
-    const current = await darkonnetApi.getMarket(marketId);
-    const { market } = await request<{ market: ApiMarket }>(
-      `/api/markets/${encodeURIComponent(marketId)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          marketId,
-          onchainMarketId: current.onchainMarketId,
-          slug: current.slug,
-          category: current.category,
-          title: current.question,
-          imageUrl: isHttpUrl(current.coverImageDataUrl) ? current.coverImageDataUrl : undefined,
-          creatorWalletAddress: current.creatorKey,
-          status: "resolved",
-          startsAt: current.endsAt,
-          resolvedAt: new Date().toISOString(),
-          resolution,
-          metadata: {
-            rules: current.rules,
-            sources: current.sources || [],
-            yesProbability: current.yesProbability,
-            encryptedVolumeLabel: current.encryptedVolumeLabel,
-            tradingVolume: current.tradingVolume,
-            signalLabel: current.signalLabel,
-            adminNote,
-            resolution,
-            coverImageDataUrl: current.coverImageDataUrl,
-          },
-        }),
-      },
-      adminWalletAddress,
-    );
-    return mapApiMarket(market);
+    const { data, error } = await supabase
+      .from("markets")
+      .update({
+        status: "resolved",
+        resolved_at: new Date().toISOString(),
+        resolution,
+        metadata: { adminNote, resolution },
+      })
+      .eq("market_id", marketId)
+      .select()
+      .single();
+    if (error) throw error;
+    return mapApiMarket(mapSupabaseMarketToApi(data));
   },
   async listComments(marketId: string) {
-    const { comments } = await request<{ comments: ApiComment[] }>(
-      `/api/markets/${encodeURIComponent(marketId)}/comments`,
-    );
-    return comments;
+    const { data, error } = await supabase
+      .from("comments")
+      .select("*")
+      .eq("market_id", marketId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    
+    const mapComment = (c: any): ApiComment => ({
+      id: c.id,
+      marketId: c.market_id,
+      parentId: c.parent_id,
+      walletAddress: c.wallet_address,
+      displayName: c.display_name,
+      body: c.body,
+      likedBy: c.liked_by || [],
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+    });
+
+    return (data || []).map(mapComment);
   },
   async createComment(input: {
     marketId: string;
@@ -584,69 +361,118 @@ export const darkonnetApi = {
     body: string;
     parentId?: string | null;
   }) {
-    const { comment } = await request<{ comment: ApiComment }>(
-      `/api/markets/${encodeURIComponent(input.marketId)}/comments`,
-      {
-        method: "POST",
-        body: JSON.stringify(input),
-      },
-      input.walletAddress,
-    );
-    return comment;
+    const { data, error } = await supabase
+      .from("comments")
+      .insert({
+        market_id: input.marketId,
+        wallet_address: input.walletAddress.toLowerCase(),
+        display_name: input.displayName,
+        body: input.body,
+        parent_id: input.parentId,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   },
   async setCommentLike(input: { marketId: string; commentId: string; walletAddress: string; liked: boolean }) {
-    const { comment } = await request<{ comment: ApiComment; liked: boolean }>(
-      `/api/markets/${encodeURIComponent(input.marketId)}/comments/${encodeURIComponent(input.commentId)}/like`,
-      {
-        method: "POST",
-        body: JSON.stringify({ walletAddress: input.walletAddress, liked: input.liked }),
-      },
-      input.walletAddress,
-    );
-    return comment;
+    const { data: current } = await supabase.from("comments").select("liked_by").eq("id", input.commentId).single();
+    let likedBy = current?.liked_by || [];
+    if (input.liked) {
+      if (!likedBy.includes(input.walletAddress)) likedBy.push(input.walletAddress);
+    } else {
+      likedBy = likedBy.filter((w: string) => w !== input.walletAddress);
+    }
+    const { data, error } = await supabase
+      .from("comments")
+      .update({ liked_by: likedBy })
+      .eq("id", input.commentId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   },
   async addParticipant(marketId: string, walletAddress: string) {
-    await request<{ market: ApiMarket }>(
-      `/api/markets/${encodeURIComponent(marketId)}/participants`,
-      {
-        method: "POST",
-        body: JSON.stringify({ walletAddress }),
-      },
-      walletAddress,
-    );
+    const { data: current } = await supabase.from("markets").select("participants").eq("market_id", marketId).single();
+    let participants = current?.participants || [];
+    if (!participants.includes(walletAddress)) {
+      participants.push(walletAddress);
+      await supabase.from("markets").update({ participants }).eq("market_id", marketId);
+    }
   },
   async listNotifications(walletAddress: string) {
-    const { notifications } = await request<{ notifications: ApiNotification[] }>(
-      `/api/wallets/${encodeURIComponent(walletAddress)}/notifications`,
-      undefined,
-      walletAddress,
-    );
-    return notifications;
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("wallet_address", walletAddress.toLowerCase())
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    
+    return (data || []).map(n => ({
+      id: n.id,
+      walletAddress: n.wallet_address,
+      type: n.type,
+      title: n.title,
+      body: n.body,
+      marketId: n.market_id,
+      commentId: n.comment_id,
+      metadata: n.metadata,
+      readAt: n.read_at,
+      createdAt: n.created_at,
+    }));
   },
   async markNotificationRead(walletAddress: string, notificationId: string) {
-    await request<{ notification: ApiNotification }>(
-      `/api/wallets/${encodeURIComponent(walletAddress)}/notifications/${encodeURIComponent(notificationId)}`,
-      { method: "PATCH" },
-      walletAddress,
-    );
+    await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("id", notificationId)
+      .eq("wallet_address", walletAddress.toLowerCase());
   },
   async getProfile(walletAddress: string) {
-    const { profile } = await request<{ profile: ApiProfile }>(
-      `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
-      undefined,
-      walletAddress,
-    );
-    return profile;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("wallet_address", walletAddress.toLowerCase())
+      .single();
+    
+    if (error && error.code !== "PGRST116") throw error;
+    if (!data) return { walletAddress, profileName: "", bio: "", email: "", profileImageDataUrl: "", receiveUpdates: true, receivePositionNotifications: true };
+    
+    return {
+      walletAddress: data.wallet_address,
+      profileName: data.profile_name,
+      bio: data.bio,
+      email: data.email,
+      profileImageDataUrl: data.profile_image_data_url,
+      receiveUpdates: data.receive_updates,
+      receivePositionNotifications: data.receive_position_notifications,
+    };
   },
   async saveProfile(walletAddress: string, profile: Omit<ApiProfile, "walletAddress" | "createdAt" | "updatedAt">) {
-    const { profile: savedProfile } = await request<{ profile: ApiProfile }>(
-      `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
-      {
-        method: "PUT",
-        body: JSON.stringify(profile),
-      },
-      walletAddress,
-    );
-    return savedProfile;
+    const { data, error } = await supabase
+      .from("profiles")
+      .upsert({
+        wallet_address: walletAddress.toLowerCase(),
+        profile_name: profile.profileName,
+        bio: profile.bio,
+        email: profile.email,
+        profile_image_data_url: profile.profileImageDataUrl,
+        receive_updates: profile.receiveUpdates,
+        receive_position_notifications: profile.receivePositionNotifications,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return {
+      walletAddress: data.wallet_address,
+      profileName: data.profile_name,
+      bio: data.bio,
+      email: data.email,
+      profileImageDataUrl: data.profile_image_data_url,
+      receiveUpdates: data.receive_updates,
+      receivePositionNotifications: data.receive_position_notifications,
+    };
   },
 };

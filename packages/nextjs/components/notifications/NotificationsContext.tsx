@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { type ApiNotification, darkonnetApi } from "~~/lib/darkonnetApi";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type ApiNotification } from "~~/lib/darkonnetApi";
+import { createClient } from "~~/utils/supabase/client";
 
 export type Notification = {
   id: string;
@@ -32,22 +33,18 @@ const relativeTime = (date: string) => {
   return `${Math.floor(hours / 24)}d ago`;
 };
 
-const mapNotification = (notification: ApiNotification): Notification => ({
+const mapNotification = (notification: any): Notification => ({
   id: notification.id,
   title: notification.title,
   message: notification.body,
-  time: relativeTime(notification.createdAt),
-  read: Boolean(notification.readAt),
+  time: relativeTime(notification.created_at || notification.createdAt),
+  read: Boolean(notification.read_at || notification.readAt),
 });
 
 export const NotificationsProvider = ({ children }: { children: React.ReactNode }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [walletAddress, setWalletAddress] = useState("");
-  const socketRef = useRef<WebSocket | null>(null);
-
-  useEffect(() => {
-    return () => socketRef.current?.close();
-  }, []);
+  const supabase = useMemo(() => createClient(), []);
 
   const addNotification = useCallback((notification: Omit<Notification, "id" | "read">) => {
     setNotifications(prev => [
@@ -63,45 +60,67 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
   const connectWalletNotifications = useCallback((address?: string) => {
     const normalizedAddress = address?.toLowerCase() || "";
     setWalletAddress(normalizedAddress);
-    socketRef.current?.close();
-    socketRef.current = null;
 
     if (!normalizedAddress) {
       setNotifications([]);
       return;
     }
 
-    const connect = async () => {
-      const nextNotifications = await darkonnetApi.listNotifications(normalizedAddress);
-      setNotifications(nextNotifications.map(mapNotification));
+    const fetchAndSubscribe = async () => {
+      // 1. Fetch initial notifications from Supabase
+      const { data: initialNotifs } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('wallet_address', normalizedAddress)
+        .order('created_at', { ascending: false });
 
-      const socket = new WebSocket(await darkonnetApi.authenticatedWsNotificationsUrl(normalizedAddress));
-      socketRef.current = socket;
-      socket.addEventListener("message", event => {
-        try {
-          const payload = JSON.parse(event.data) as { type?: string; notification?: ApiNotification };
-          if (payload.type === "notification.created" && payload.notification) {
-            setNotifications(prev => [mapNotification(payload.notification as ApiNotification), ...prev]);
+      if (initialNotifs) {
+        setNotifications(initialNotifs.map(mapNotification));
+      }
+
+      // 2. Subscribe to new notifications
+      const channel = supabase
+        .channel(`notifications:${normalizedAddress}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `wallet_address=eq.${normalizedAddress}`,
+          },
+          (payload) => {
+            console.log('Realtime notification received:', payload);
+            setNotifications(prev => [mapNotification(payload.new), ...prev]);
           }
-        } catch {
-          // Ignore malformed websocket messages.
-        }
-      });
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     };
 
-    connect().catch(() => setNotifications([]));
-  }, []);
+    const cleanupPromise = fetchAndSubscribe();
+    return () => {
+      cleanupPromise.then(cleanup => cleanup?.());
+    };
+  }, [supabase]);
 
   const markAsRead = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (walletAddress) {
-        darkonnetApi.markNotificationRead(walletAddress, id).catch(() => {});
+        // Update in Supabase
+        await supabase
+          .from('notifications')
+          .update({ read_at: new Date().toISOString() })
+          .eq('id', id);
       }
       setNotifications(prev =>
         prev.map(notification => (notification.id === id ? { ...notification, read: true } : notification)),
       );
     },
-    [walletAddress],
+    [walletAddress, supabase],
   );
 
   const value = useMemo(
