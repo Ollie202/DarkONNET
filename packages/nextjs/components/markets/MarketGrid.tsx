@@ -147,18 +147,51 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
   useEffect(() => {
     let active = true;
+    const supabase = createClient();
+
+    const mapSupabaseMarket = (m: any): Market => ({
+      id: m.market_id,
+      slug: m.slug,
+      onchainMarketId: m.onchain_market_id,
+      question: m.title,
+      description: m.description,
+      category: m.category,
+      yesProbability: m.metadata?.yesProbability || 0.5,
+      encryptedVolumeLabel: m.metadata?.encryptedVolumeLabel || "Encrypted",
+      tradingVolume: m.metadata?.tradingVolume || 0,
+      endsAt: m.metadata?.endsAt || m.starts_at || new Date().toISOString(),
+      signalLabel: m.metadata?.signalLabel || "Awaiting activity",
+      sentimentSignals: m.metadata?.sentimentSignals || { news: 50, volume: 50, crowd: 50 },
+      trending: m.metadata?.trending || false,
+      rules: m.metadata?.rules || "",
+      sources: m.metadata?.sources || [],
+      coverImageDataUrl: m.metadata?.coverImageDataUrl,
+      homeLogoUrl: m.home_logo_url,
+      awayLogoUrl: m.away_logo_url,
+      homeName: m.home_name,
+      awayName: m.away_name,
+      creatorKey: m.creator_wallet_address,
+      status: m.status,
+      resolution: m.resolution,
+      resolvedAt: m.resolved_at,
+    });
 
     const syncMarkets = async () => {
       setIsLoading(true);
       setError("");
       try {
-        const nextMarkets = await darkonnetApi.listMarkets();
+        const { data, error: fetchError } = await supabase
+          .from('markets')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (fetchError) throw fetchError;
         if (!active) return;
-        setMarkets(nextMarkets);
+        setMarkets(data.map(mapSupabaseMarket));
       } catch (err) {
         if (!active) return;
         setMarkets([]);
-        setError(err instanceof Error ? err.message : "Unable to load markets from the DarkONNET backend.");
+        setError(err instanceof Error ? err.message : "Unable to load markets from Supabase.");
       } finally {
         if (active) setIsLoading(false);
       }
@@ -166,8 +199,26 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
     syncMarkets();
 
+    const channel = supabase
+      .channel('markets-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'markets' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setMarkets(prev => [mapSupabaseMarket(payload.new), ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setMarkets(prev => prev.map(m => m.id === payload.new.market_id ? mapSupabaseMarket(payload.new) : m));
+          } else if (payload.eventType === 'DELETE') {
+            setMarkets(prev => prev.filter(m => m.id === payload.old.market_id));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       active = false;
+      supabase.removeChannel(channel);
     };
   }, []);
 
