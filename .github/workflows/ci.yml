@@ -57,10 +57,11 @@ jobs:
 
       - name: frontend build
         env:
-          # scaffold.config.ts throws in production if this is unset. CI only
-          # exercises the build pipeline — a stub is enough since no RPC call
-          # actually happens during `next build`.
+          # scaffold.config.ts throws in production if these are unset. CI only
+          # exercises the build pipeline — stubs are enough since no RPC calls
+          # actually happen during `next build`.
           NEXT_PUBLIC_ALCHEMY_API_KEY: ci-stub
+          NEXT_PUBLIC_INFURA_API_KEY: ci-stub
         run: pnpm --filter ./packages/nextjs build
 
       - name: prettier check
