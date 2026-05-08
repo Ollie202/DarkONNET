@@ -189,8 +189,7 @@ const mapApiMarket = (market: ApiMarket): Market => {
       ? [market.sourceUrl, ...stringArrayFromMetadata(metadata, "sources")]
       : stringArrayFromMetadata(metadata, "sources"),
     coverImageDataUrl:
-      market.imageUrl ||
-      (typeof metadata.coverImageDataUrl === "string" ? metadata.coverImageDataUrl : undefined),
+      market.imageUrl || (typeof metadata.coverImageDataUrl === "string" ? metadata.coverImageDataUrl : undefined),
     homeLogoUrl: market.homeLogoUrl || undefined,
     awayLogoUrl: market.awayLogoUrl || undefined,
     homeName: market.homeName || undefined,
@@ -202,7 +201,7 @@ const mapApiMarket = (market: ApiMarket): Market => {
     adminNote: typeof metadata.adminNote === "string" ? metadata.adminNote : undefined,
     resolution:
       market.resolution === "yes" || market.resolution === "no" || market.resolution === "canceled"
-        ? market.resolution as any
+        ? (market.resolution as any)
         : undefined,
     resolvedAt: market.resolvedAt || undefined,
     token: typeof metadata.token === "string" ? metadata.token : "cUSDT",
@@ -251,7 +250,7 @@ export const darkonnetApi = {
     return `supabase-realtime:${walletAddress}`;
   },
   async listMarkets(options: { includeEnded?: boolean } = {}) {
-    let query = supabase.from("markets").select("*");
+    const query = supabase.from("markets").select("*");
     if (!options.includeEnded) {
       // Filter logic if needed, but usually we handle in UI
     }
@@ -299,7 +298,12 @@ export const darkonnetApi = {
     if (error) throw error;
     return mapApiMarket(mapSupabaseMarketToApi(data));
   },
-  async updateMarketStatus(marketId: string, status: "open" | "declined", adminNote = "", _adminWalletAddress?: string) {
+  async updateMarketStatus(
+    marketId: string,
+    status: "open" | "declined",
+    adminNote = "",
+    _adminWalletAddress?: string,
+  ) {
     const { data, error } = await supabase
       .from("markets")
       .update({
@@ -339,7 +343,7 @@ export const darkonnetApi = {
       .eq("market_id", marketId)
       .order("created_at", { ascending: true });
     if (error) throw error;
-    
+
     const mapComment = (c: any): ApiComment => ({
       id: c.id,
       marketId: c.market_id,
@@ -394,7 +398,7 @@ export const darkonnetApi = {
   },
   async addParticipant(marketId: string, walletAddress: string) {
     const { data: current } = await supabase.from("markets").select("participants").eq("market_id", marketId).single();
-    let participants = current?.participants || [];
+    const participants = current?.participants || [];
     if (!participants.includes(walletAddress)) {
       participants.push(walletAddress);
       await supabase.from("markets").update({ participants }).eq("market_id", marketId);
@@ -407,8 +411,8 @@ export const darkonnetApi = {
       .eq("wallet_address", walletAddress.toLowerCase())
       .order("created_at", { ascending: false });
     if (error) throw error;
-    
-    return (data || []).map(n => ({
+
+    return (data || []).map((n: Record<string, unknown>) => ({
       id: n.id,
       walletAddress: n.wallet_address,
       type: n.type,
@@ -434,10 +438,19 @@ export const darkonnetApi = {
       .select("*")
       .eq("wallet_address", walletAddress.toLowerCase())
       .single();
-    
+
     if (error && error.code !== "PGRST116") throw error;
-    if (!data) return { walletAddress, profileName: "", bio: "", email: "", profileImageDataUrl: "", receiveUpdates: true, receivePositionNotifications: true };
-    
+    if (!data)
+      return {
+        walletAddress,
+        profileName: "",
+        bio: "",
+        email: "",
+        profileImageDataUrl: "",
+        receiveUpdates: true,
+        receivePositionNotifications: true,
+      };
+
     return {
       walletAddress: data.wallet_address,
       profileName: data.profile_name,
@@ -463,7 +476,7 @@ export const darkonnetApi = {
       })
       .select()
       .single();
-    
+
     if (error) throw error;
     return {
       walletAddress: data.wallet_address,

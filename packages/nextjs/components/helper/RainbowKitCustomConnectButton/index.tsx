@@ -97,6 +97,9 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
 
   useEffect(() => {
     loadWalletProfile(account.address);
+    return () => {
+      loadWalletProfile(undefined);
+    };
   }, [account.address, loadWalletProfile]);
 
   useEffect(() => {

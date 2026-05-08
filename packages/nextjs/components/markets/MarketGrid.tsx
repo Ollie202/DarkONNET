@@ -1,21 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useIsAllowed } from "@zama-fhe/react-sdk";
 import { ShieldCheck } from "lucide-react";
 import { useAccount } from "wagmi";
 import { type CategoryFilter, CategoryTabs } from "~~/components/markets/CategoryTabs";
 import { MarketCard } from "~~/components/markets/MarketCard";
 import { useProfile } from "~~/components/profile/ProfileContext";
+import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
 import { type OnchainPoolSnapshot, useOnchainMarketVolumes } from "~~/hooks/markets/useOnchainMarketVolumes";
 import { darkonnetApi } from "~~/lib/darkonnetApi";
-import { useIsAllowed } from "@zama-fhe/react-sdk";
 import { type Market, getMarketVolumeScore } from "~~/lib/mockMarkets";
 import { sepolia } from "~~/utils/chains";
 import { deploymentFor } from "~~/utils/contract";
-import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
+import { createClient } from "~~/utils/supabase/client";
+
 type MarketGridProps = {
   source?: "platform" | "creator";
 };
@@ -181,9 +183,9 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
       setError("");
       try {
         const { data, error: fetchError } = await supabase
-          .from('markets')
-          .select('*')
-          .order('created_at', { ascending: false });
+          .from("markets")
+          .select("*")
+          .order("created_at", { ascending: false });
 
         if (fetchError) throw fetchError;
         if (!active) return;
@@ -200,19 +202,19 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
     syncMarkets();
 
     const channel = supabase
-      .channel('markets-realtime')
+      .channel("markets-realtime")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'markets' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
+        "postgres_changes",
+        { event: "*", schema: "public", table: "markets" },
+        (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
+          if (payload.eventType === "INSERT") {
             setMarkets(prev => [mapSupabaseMarket(payload.new), ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setMarkets(prev => prev.map(m => m.id === payload.new.market_id ? mapSupabaseMarket(payload.new) : m));
-          } else if (payload.eventType === 'DELETE') {
+          } else if (payload.eventType === "UPDATE") {
+            setMarkets(prev => prev.map(m => (m.id === payload.new.market_id ? mapSupabaseMarket(payload.new) : m)));
+          } else if (payload.eventType === "DELETE") {
             setMarkets(prev => prev.filter(m => m.id === payload.old.market_id));
           }
-        }
+        },
       )
       .subscribe();
 
@@ -280,7 +282,6 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
               : "Bet sizes and sides stay encrypted on-chain."}
           </p>
         </div>
-
       </header>
 
       {isCreatorMarketView && (

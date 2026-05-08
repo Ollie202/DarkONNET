@@ -30,6 +30,7 @@ import {
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 import { sepolia } from "~~/utils/chains";
 import { deploymentFor } from "~~/utils/contract";
+import { createClient } from "~~/utils/supabase/client";
 
 type SelectedSide = "yes" | "no" | null;
 type CommentSort = "top" | "new";
@@ -298,10 +299,14 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
           loadComments();
         },
       )
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "markets", filter: `market_id=eq.${market.id}` }, payload => {
-        // Handle market status/metadata updates if needed
-        console.log("Market updated:", payload.new);
-      })
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "markets", filter: `market_id=eq.${market.id}` },
+        (payload: { new: Record<string, unknown> }) => {
+          // Handle market status/metadata updates if needed
+          console.log("Market updated:", payload.new);
+        },
+      )
       .subscribe();
 
     return () => {

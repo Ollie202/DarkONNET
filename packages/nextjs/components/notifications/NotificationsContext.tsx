@@ -57,64 +57,64 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
     ]);
   }, []);
 
-  const connectWalletNotifications = useCallback((address?: string) => {
-    const normalizedAddress = address?.toLowerCase() || "";
-    setWalletAddress(normalizedAddress);
+  const connectWalletNotifications = useCallback(
+    (address?: string) => {
+      const normalizedAddress = address?.toLowerCase() || "";
+      setWalletAddress(normalizedAddress);
 
-    if (!normalizedAddress) {
-      setNotifications([]);
-      return;
-    }
-
-    const fetchAndSubscribe = async () => {
-      // 1. Fetch initial notifications from Supabase
-      const { data: initialNotifs } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('wallet_address', normalizedAddress)
-        .order('created_at', { ascending: false });
-
-      if (initialNotifs) {
-        setNotifications(initialNotifs.map(mapNotification));
+      if (!normalizedAddress) {
+        setNotifications([]);
+        return;
       }
 
-      // 2. Subscribe to new notifications
-      const channel = supabase
-        .channel(`notifications:${normalizedAddress}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `wallet_address=eq.${normalizedAddress}`,
-          },
-          (payload) => {
-            console.log('Realtime notification received:', payload);
-            setNotifications(prev => [mapNotification(payload.new), ...prev]);
-          }
-        )
-        .subscribe();
+      const fetchAndSubscribe = async () => {
+        // 1. Fetch initial notifications from Supabase
+        const { data: initialNotifs } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("wallet_address", normalizedAddress)
+          .order("created_at", { ascending: false });
 
-      return () => {
-        supabase.removeChannel(channel);
+        if (initialNotifs) {
+          setNotifications(initialNotifs.map(mapNotification));
+        }
+
+        // 2. Subscribe to new notifications
+        const channel = supabase
+          .channel(`notifications:${normalizedAddress}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "notifications",
+              filter: `wallet_address=eq.${normalizedAddress}`,
+            },
+            (payload: { new: Record<string, unknown> }) => {
+              console.log("Realtime notification received:", payload);
+              setNotifications(prev => [mapNotification(payload.new), ...prev]);
+            },
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
       };
-    };
 
-    const cleanupPromise = fetchAndSubscribe();
-    return () => {
-      cleanupPromise.then(cleanup => cleanup?.());
-    };
-  }, [supabase]);
+      const cleanupPromise = fetchAndSubscribe();
+      return () => {
+        cleanupPromise.then(cleanup => cleanup?.());
+      };
+    },
+    [supabase],
+  );
 
   const markAsRead = useCallback(
     async (id: string) => {
       if (walletAddress) {
         // Update in Supabase
-        await supabase
-          .from('notifications')
-          .update({ read_at: new Date().toISOString() })
-          .eq('id', id);
+        await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
       }
       setNotifications(prev =>
         prev.map(notification => (notification.id === id ? { ...notification, read: true } : notification)),

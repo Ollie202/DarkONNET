@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: process.env.NEXT_PUBLIC_IGNORE_BUILD_ERROR === "true",
   },
-  swcMinify: false,
   webpack: config => {
     config.resolve.alias = {
       ...config.resolve.alias,
