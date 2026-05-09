@@ -80,7 +80,7 @@ const formatCategory = (category: Market["category"]) => category[0].toUpperCase
 
 const getResolutionLabel = (marketInfo?: MarketInfo, fallbackResolution?: Market["resolution"]) => {
   if (marketInfo?.[4]) {
-    if (marketInfo[5]) return "Canceled";
+    if (marketInfo[6]) return "Canceled";
     return marketInfo[5] === 0 ? "Resolved Yes" : "Resolved No";
   }
 
@@ -491,7 +491,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       });
 
       setBetMessage("Approving encrypted cUSDT spend...");
-      await writeContractAsync({
+      const approvalHash = await writeContractAsync({
         address: cUSDTContract.address,
         abi: cUSDTContract.abi,
         functionName: "approve",
@@ -503,8 +503,9 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
         chainId: sepolia.id,
         gas: 15_000_000n,
       });
+      await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, chainId: sepolia.id });
 
-      setBetMessage("Approval sent. Encrypting prediction amount...");
+      setBetMessage("Approval confirmed. Encrypting prediction amount...");
       const betInput = await encrypt.mutateAsync({
         values: [{ value: amountUnits, type: "euint64" }],
         contractAddress: marketContract.address,
@@ -527,8 +528,13 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       });
       await waitForTransactionReceipt(wagmiConfig, { hash: betHash, chainId: sepolia.id });
 
-      await darkonnetApi.addParticipant(market.id, participantWalletAddress);
+      try {
+        await darkonnetApi.addParticipant(market.id, participantWalletAddress);
+      } catch (participantError) {
+        console.warn("Bet confirmed, but participant sync failed.", participantError);
+      }
       setBetMessage("Bet placed");
+      window.dispatchEvent(new Event("darkonnet:cusdt-balance-refresh"));
       void oddsSnapshot.loadLatestSnapshot();
       setAmount("");
     } catch (err) {

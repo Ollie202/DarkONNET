@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAllow, useIsAllowed, usePublicDecrypt, useUserDecrypt } from "@zama-fhe/react-sdk";
 import { ZERO_HANDLE } from "@zama-fhe/sdk";
 import { formatUnits } from "viem";
-import { useAccount, useReadContract, useReadContracts } from "wagmi";
+import { useAccount, usePublicClient, useReadContract, useReadContracts } from "wagmi";
 import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
 import { darkonnetApi } from "~~/lib/darkonnetApi";
 import { type Market, isMarketEnded } from "~~/lib/mockMarkets";
@@ -46,6 +46,15 @@ type PoolSnapshot = {
   yes: bigint;
   no: bigint;
 };
+type PositionReadResult =
+  | {
+      status: "success";
+      result?: unknown;
+    }
+  | {
+      status: "failure";
+      error: Error;
+    };
 
 const toPositionStatus = (market?: Market, marketInfo?: MarketInfo): ChainPositionStatus => {
   if (marketInfo?.[4]) {
@@ -108,7 +117,12 @@ export const useMarketPositions = () => {
   const [decryptRequested, setDecryptRequested] = useState(false);
   const [decryptEnabled, setDecryptEnabled] = useState(false);
   const [poolSnapshotsById, setPoolSnapshotsById] = useState<Record<string, PoolSnapshot>>({});
+  const [positionReadResults, setPositionReadResults] = useState<PositionReadResult[]>([]);
+  const [positionReadError, setPositionReadError] = useState<Error | null>(null);
+  const [isPositionReadLoading, setIsPositionReadLoading] = useState(false);
+  const [hasPositionReadSucceeded, setHasPositionReadSucceeded] = useState(false);
   const { mutateAsync: publicDecryptAsync, isPending: isPublicDecrypting } = usePublicDecrypt();
+  const publicClient = usePublicClient({ chainId: sepolia.id });
 
   const hasContract = Boolean(marketContract?.address && marketContract?.abi);
   const walletKey = address?.toLowerCase();
@@ -133,11 +147,14 @@ export const useMarketPositions = () => {
 
   const positionMarkets = useMemo(() => {
     if (!walletKey) return [];
-    const walletMarkets = markets.filter(market =>
-      market.participantWallets?.some(participant => participant.toLowerCase() === walletKey),
-    );
+    const entries = new Map<string, Market>();
+    markets.forEach(market => {
+      if (market.onchainMarketId) {
+        entries.set(market.onchainMarketId, market);
+      }
+    });
 
-    return walletMarkets;
+    return [...entries.values()];
   }, [markets, walletKey]);
 
   const marketByOnchainId = useMemo(() => {
@@ -212,31 +229,53 @@ export const useMarketPositions = () => {
     return entries;
   }, [marketInfoReads.data, marketInfoTargets]);
 
-  const positionReads = useReadContracts({
-    allowFailure: true,
-    contracts: positionTargets.map(target => ({
-      address: marketContract?.address,
-      abi: marketContract?.abi,
-      functionName: "getMyPosition",
-      args: [BigInt(target.onchainMarketId), target.outcome],
-      chainId: sepolia.id,
-      account: address,
-    })),
-    query: {
-      enabled: Boolean(hasContract && isConnected && address && positionTargets.length > 0),
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      retry: false,
-      staleTime: CHAIN_READ_STALE_MS,
-    },
-  });
+  const loadPositionReads = useCallback(async () => {
+    if (!hasContract || !isConnected || !address || !publicClient || positionTargets.length === 0) {
+      setPositionReadResults([]);
+      setPositionReadError(null);
+      setIsPositionReadLoading(false);
+      setHasPositionReadSucceeded(Boolean(positionTargets.length === 0));
+      return;
+    }
+
+    setIsPositionReadLoading(true);
+    setPositionReadError(null);
+
+    const results = await Promise.all(
+      positionTargets.map(async target => {
+        try {
+          const result = await publicClient.readContract({
+            address: marketContract!.address,
+            abi: marketContract!.abi,
+            functionName: "getMyPosition",
+            args: [BigInt(target.onchainMarketId), target.outcome],
+            account: address,
+          });
+
+          return { status: "success" as const, result };
+        } catch (error) {
+          return {
+            status: "failure" as const,
+            error: error instanceof Error ? error : new Error("Unable to read position from chain."),
+          };
+        }
+      }),
+    );
+
+    setPositionReadResults(results);
+    setPositionReadError(results.find(result => result.status === "failure")?.error ?? null);
+    setIsPositionReadLoading(false);
+    setHasPositionReadSucceeded(true);
+  }, [address, hasContract, isConnected, positionTargets, publicClient]);
+
+  useEffect(() => {
+    void loadPositionReads();
+  }, [loadPositionReads]);
 
   const encryptedPositions = useMemo(() => {
-    const results = positionReads.data ?? [];
-
     return positionTargets
       .map((target, index) => {
-        const result = results[index];
+        const result = positionReadResults[index];
         const handle = result?.status === "success" && typeof result.result === "string" ? result.result : undefined;
 
         if (!handle || handle === ZERO_HANDLE) {
@@ -249,7 +288,7 @@ export const useMarketPositions = () => {
         };
       })
       .filter((position): position is NonNullable<typeof position> => Boolean(position));
-  }, [positionReads.data, positionTargets]);
+  }, [positionReadResults, positionTargets]);
 
   const tokenAddress = (marketContract?.address ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
   const { data: isAllowed } = useIsAllowed({ contractAddresses: [tokenAddress] });
@@ -481,7 +520,7 @@ export const useMarketPositions = () => {
   return {
     decrypt,
     error:
-      positionReads.error ||
+      positionReadError ||
       marketInfoReads.error ||
       pendingExitRead.error ||
       completedPoolReads.error ||
@@ -490,15 +529,15 @@ export const useMarketPositions = () => {
     isAllowing,
     isDecrypting: decryptedPositions.isFetching || isPublicDecrypting,
     isLoading:
-      positionReads.isLoading || marketInfoReads.isLoading || pendingExitRead.isLoading || completedPoolReads.isLoading,
+      isPositionReadLoading || marketInfoReads.isLoading || pendingExitRead.isLoading || completedPoolReads.isLoading,
     isPendingExitLoading: pendingExitRead.isLoading,
-    isReady: positionReads.isSuccess,
+    isReady: hasPositionReadSucceeded,
     metadataError: marketsError,
     pendingExit: pendingExitRead.data as PendingExit | undefined,
     positions,
     refresh: async () => {
       await refreshMarkets();
-      await positionReads.refetch();
+      await loadPositionReads();
       await marketInfoReads.refetch();
       if (completedPayoutMarketIds.length > 0) {
         await completedPoolReads.refetch();
