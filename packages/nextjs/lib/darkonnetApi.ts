@@ -1,8 +1,10 @@
+import { getAddress } from "viem";
 import { type LocalMarket } from "~~/lib/localMarkets";
 import { type Market, type MarketCategory, parseMarketVolume } from "~~/lib/mockMarkets";
 import { createClient } from "~~/utils/supabase/client";
 
 const supabase = createClient();
+const apiBaseUrl = (process.env.NEXT_PUBLIC_DARKONNET_API_URL || "http://localhost:8787").replace(/\/+$/, "");
 
 export type ApiMarket = {
   marketId: string;
@@ -134,6 +136,120 @@ const stringArrayFromMetadata = (metadata: Record<string, unknown> | undefined, 
 
 const isHttpUrl = (value?: string) => Boolean(value && /^https?:\/\//i.test(value));
 
+const normalizeWalletAddress = (walletAddress: string) => getAddress(walletAddress).toLowerCase();
+
+const signAuthMessage = async (walletAddress: string, message: string) => {
+  const ethereum = typeof window !== "undefined" ? (window as any).ethereum : undefined;
+  if (!ethereum?.request) throw new Error("Wallet provider is not available for backend authentication.");
+
+  return ethereum.request({
+    method: "personal_sign",
+    params: [message, walletAddress],
+  }) as Promise<string>;
+};
+
+type ApiSession = {
+  token: string;
+  walletAddress: string;
+  expiresAt: string;
+};
+
+const sessionStorageKey = (walletAddress: string) => `darkonnet:api-session:${normalizeWalletAddress(walletAddress)}`;
+
+const getStoredSession = (walletAddress: string): ApiSession | null => {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(sessionStorageKey(walletAddress));
+  if (!raw) return null;
+
+  try {
+    const session = JSON.parse(raw) as ApiSession;
+    if (!session.token || Date.parse(session.expiresAt) <= Date.now() + 60_000) {
+      window.localStorage.removeItem(sessionStorageKey(walletAddress));
+      return null;
+    }
+    return session;
+  } catch {
+    window.localStorage.removeItem(sessionStorageKey(walletAddress));
+    return null;
+  }
+};
+
+const storeSession = (session: ApiSession) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(sessionStorageKey(session.walletAddress), JSON.stringify(session));
+};
+
+const clearStoredSession = (walletAddress: string) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(sessionStorageKey(walletAddress));
+};
+
+const createApiSession = async (walletAddress: string): Promise<ApiSession> => {
+  const nonceResponse = await fetch(`${apiBaseUrl}/api/auth/nonce`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ walletAddress }),
+  });
+  const noncePayload = await nonceResponse.json().catch(() => ({}));
+  if (!nonceResponse.ok) throw new Error(noncePayload.error || "Unable to create backend auth nonce.");
+
+  const signature = await signAuthMessage(walletAddress, noncePayload.message);
+  const loginResponse = await fetch(`${apiBaseUrl}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      walletAddress,
+      nonce: noncePayload.nonce,
+      signature,
+    }),
+  });
+  const loginPayload = await loginResponse.json().catch(() => ({}));
+  if (!loginResponse.ok) throw new Error(loginPayload.error || "Unable to create backend auth session.");
+
+  const session = loginPayload.session as ApiSession;
+  storeSession(session);
+  return session;
+};
+
+const getApiSession = async (walletAddress: string) => getStoredSession(walletAddress) || createApiSession(walletAddress);
+
+const apiRequest = async <T>(
+  path: string,
+  {
+    method = "GET",
+    body,
+    walletAddress,
+    retryingAfterSessionRefresh = false,
+  }: {
+    method?: "GET" | "POST" | "PUT" | "PATCH";
+    body?: unknown;
+    walletAddress?: string;
+    retryingAfterSessionRefresh?: boolean;
+  } = {},
+): Promise<T> => {
+  const rawBody = body === undefined ? "" : JSON.stringify(body);
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
+  if (walletAddress) {
+    const session = await getApiSession(walletAddress);
+    headers.Authorization = `Bearer ${session.token}`;
+  }
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : rawBody,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (response.status === 401 && walletAddress && !retryingAfterSessionRefresh) {
+    clearStoredSession(walletAddress);
+    return apiRequest<T>(path, { method, body, walletAddress, retryingAfterSessionRefresh: true });
+  }
+  if (!response.ok) throw new Error(payload.error || `DarkONNET API request failed with ${response.status}`);
+  return payload as T;
+};
+
 const mapApiMarket = (market: ApiMarket): Market => {
   const metadata = market.metadata || {};
   const category = normalizeCategory(market.category);
@@ -244,12 +360,18 @@ const mapSupabaseMarketToApi = (m: any): ApiMarket => ({
 export const mapSupabaseMarketToMarket = (market: any): Market => mapApiMarket(mapSupabaseMarketToApi(market));
 
 export const darkonnetApi = {
-  baseUrl: "supabase",
+  baseUrl: apiBaseUrl,
   wsNotificationsUrl(walletAddress: string) {
-    return `supabase-realtime:${walletAddress}`;
+    return `${apiBaseUrl.replace(/^http/i, "ws")}/ws/notifications?walletAddress=${encodeURIComponent(walletAddress)}`;
   },
   async authenticatedWsNotificationsUrl(walletAddress: string) {
-    return `supabase-realtime:${walletAddress}`;
+    const path = "/ws/notifications";
+    const session = await getApiSession(walletAddress);
+    const params = new URLSearchParams({
+      walletAddress: normalizeWalletAddress(walletAddress),
+      authSession: session.token,
+    });
+    return `${apiBaseUrl.replace(/^http/i, "ws")}${path}?${params.toString()}`;
   },
   async listMarkets(options: { includeEnded?: boolean } = {}) {
     const query = supabase.from("markets").select("*");
@@ -272,16 +394,16 @@ export const darkonnetApi = {
   async upsertMarket(input: LocalMarket) {
     const backendMarketId = input.onchainMarketId || input.id;
     const marketData = {
-      market_id: backendMarketId,
-      onchain_market_id: input.onchainMarketId,
+      marketId: backendMarketId,
+      onchainMarketId: input.onchainMarketId,
       slug: input.slug,
       category: input.category,
       title: input.question,
-      image_url: isHttpUrl(input.coverImageDataUrl) ? input.coverImageDataUrl : undefined,
-      creator_wallet_address: input.creatorKey || undefined,
+      imageUrl: isHttpUrl(input.coverImageDataUrl) ? input.coverImageDataUrl : undefined,
+      creatorWalletAddress: input.creatorKey || undefined,
       status: input.status === "open" ? "accepted" : input.status,
-      starts_at: input.endsAt,
-      source_url: input.sources[0],
+      startsAt: input.endsAt,
+      sourceUrl: input.sources[0],
       metadata: {
         rules: input.rules,
         sources: input.sources,
@@ -296,9 +418,12 @@ export const darkonnetApi = {
       },
     };
 
-    const { data, error } = await supabase.from("markets").upsert(marketData).select().single();
-    if (error) throw error;
-    return mapApiMarket(mapSupabaseMarketToApi(data));
+    const { market } = await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(backendMarketId)}`, {
+      method: "PUT",
+      body: marketData,
+      walletAddress: input.creatorKey,
+    });
+    return mapApiMarket(market);
   },
   async updateMarketStatus(
     marketId: string,
@@ -306,17 +431,18 @@ export const darkonnetApi = {
     adminNote = "",
     _adminWalletAddress?: string,
   ) {
-    const { data, error } = await supabase
-      .from("markets")
-      .update({
+    const existing = await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}`);
+    const { market } = await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}`, {
+      method: "PUT",
+      body: {
+        ...existing.market,
+        marketId,
         status: status === "open" ? "accepted" : "declined",
-        metadata: { adminNote },
-      })
-      .eq("market_id", marketId)
-      .select()
-      .single();
-    if (error) throw error;
-    return mapApiMarket(mapSupabaseMarketToApi(data));
+        metadata: { ...(existing.market.metadata || {}), adminNote },
+      },
+      walletAddress: _adminWalletAddress,
+    });
+    return mapApiMarket(market);
   },
   async resolveMarket(
     marketId: string,
@@ -324,19 +450,20 @@ export const darkonnetApi = {
     adminNote = "",
     _adminWalletAddress?: string,
   ) {
-    const { data, error } = await supabase
-      .from("markets")
-      .update({
+    const existing = await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}`);
+    const { market } = await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}`, {
+      method: "PUT",
+      body: {
+        ...existing.market,
+        marketId,
         status: "resolved",
-        resolved_at: new Date().toISOString(),
+        resolvedAt: new Date().toISOString(),
         resolution,
-        metadata: { adminNote, resolution },
-      })
-      .eq("market_id", marketId)
-      .select()
-      .single();
-    if (error) throw error;
-    return mapApiMarket(mapSupabaseMarketToApi(data));
+        metadata: { ...(existing.market.metadata || {}), adminNote, resolution },
+      },
+      walletAddress: _adminWalletAddress,
+    });
+    return mapApiMarket(market);
   },
   async listComments(marketId: string) {
     const { data, error } = await supabase
@@ -367,127 +494,67 @@ export const darkonnetApi = {
     body: string;
     parentId?: string | null;
   }) {
-    const { data, error } = await supabase
-      .from("comments")
-      .insert({
-        market_id: input.marketId,
-        wallet_address: input.walletAddress.toLowerCase(),
-        display_name: input.displayName,
-        body: input.body,
-        parent_id: input.parentId,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    const { comment } = await apiRequest<{ comment: ApiComment }>(
+      `/api/markets/${encodeURIComponent(input.marketId)}/comments`,
+      {
+        method: "POST",
+        body: input,
+        walletAddress: input.walletAddress,
+      },
+    );
+    return comment;
   },
   async setCommentLike(input: { marketId: string; commentId: string; walletAddress: string; liked: boolean }) {
-    const { data: current } = await supabase.from("comments").select("liked_by").eq("id", input.commentId).single();
-    let likedBy = current?.liked_by || [];
-    if (input.liked) {
-      if (!likedBy.includes(input.walletAddress)) likedBy.push(input.walletAddress);
-    } else {
-      likedBy = likedBy.filter((w: string) => w !== input.walletAddress);
-    }
-    const { data, error } = await supabase
-      .from("comments")
-      .update({ liked_by: likedBy })
-      .eq("id", input.commentId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    const { comment } = await apiRequest<{ comment: ApiComment }>(
+      `/api/markets/${encodeURIComponent(input.marketId)}/comments/${encodeURIComponent(input.commentId)}/like`,
+      {
+        method: "POST",
+        body: { walletAddress: input.walletAddress, liked: input.liked },
+        walletAddress: input.walletAddress,
+      },
+    );
+    return comment;
   },
   async addParticipant(marketId: string, walletAddress: string) {
-    const { data: current } = await supabase.from("markets").select("participants").eq("market_id", marketId).single();
-    const participants = current?.participants || [];
-    if (!participants.includes(walletAddress)) {
-      participants.push(walletAddress);
-      await supabase.from("markets").update({ participants }).eq("market_id", marketId);
-    }
+    await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}/participants`, {
+      method: "POST",
+      body: { walletAddress },
+      walletAddress,
+    });
   },
   async listNotifications(walletAddress: string) {
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("wallet_address", walletAddress.toLowerCase())
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-
-    return (data || []).map((n: Record<string, unknown>) => ({
-      id: n.id,
-      walletAddress: n.wallet_address,
-      type: n.type,
-      title: n.title,
-      body: n.body,
-      marketId: n.market_id,
-      commentId: n.comment_id,
-      metadata: n.metadata,
-      readAt: n.read_at,
-      createdAt: n.created_at,
-    }));
+    const { notifications } = await apiRequest<{ notifications: ApiNotification[] }>(
+      `/api/wallets/${encodeURIComponent(walletAddress)}/notifications`,
+      { walletAddress },
+    );
+    return notifications;
   },
   async markNotificationRead(walletAddress: string, notificationId: string) {
-    await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", notificationId)
-      .eq("wallet_address", walletAddress.toLowerCase());
+    await apiRequest<{ notification: ApiNotification }>(
+      `/api/wallets/${encodeURIComponent(walletAddress)}/notifications/${encodeURIComponent(notificationId)}`,
+      {
+        method: "PATCH",
+        body: {},
+        walletAddress,
+      },
+    );
   },
   async getProfile(walletAddress: string) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("wallet_address", walletAddress.toLowerCase())
-      .single();
-
-    if (error && error.code !== "PGRST116") throw error;
-    if (!data)
-      return {
-        walletAddress,
-        profileName: "",
-        bio: "",
-        email: "",
-        profileImageDataUrl: "",
-        receiveUpdates: true,
-        receivePositionNotifications: true,
-      };
-
-    return {
-      walletAddress: data.wallet_address,
-      profileName: data.profile_name,
-      bio: data.bio,
-      email: data.email,
-      profileImageDataUrl: data.profile_image_data_url,
-      receiveUpdates: data.receive_updates,
-      receivePositionNotifications: data.receive_position_notifications,
-    };
+    const { profile } = await apiRequest<{ profile: ApiProfile }>(
+      `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
+      { walletAddress },
+    );
+    return profile;
   },
   async saveProfile(walletAddress: string, profile: Omit<ApiProfile, "walletAddress" | "createdAt" | "updatedAt">) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .upsert({
-        wallet_address: walletAddress.toLowerCase(),
-        profile_name: profile.profileName,
-        bio: profile.bio,
-        email: profile.email,
-        profile_image_data_url: profile.profileImageDataUrl,
-        receive_updates: profile.receiveUpdates,
-        receive_position_notifications: profile.receivePositionNotifications,
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return {
-      walletAddress: data.wallet_address,
-      profileName: data.profile_name,
-      bio: data.bio,
-      email: data.email,
-      profileImageDataUrl: data.profile_image_data_url,
-      receiveUpdates: data.receive_updates,
-      receivePositionNotifications: data.receive_position_notifications,
-    };
+    const { profile: savedProfile } = await apiRequest<{ profile: ApiProfile }>(
+      `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
+      {
+        method: "PUT",
+        body: profile,
+        walletAddress,
+      },
+    );
+    return savedProfile;
   },
 };

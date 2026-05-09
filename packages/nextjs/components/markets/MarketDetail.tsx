@@ -358,16 +358,13 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       return;
     }
 
-    const supabase = createClient();
     try {
-      const { error: postError } = await supabase.from("comments").insert({
-        market_id: market.id,
-        wallet_address: commentWalletAddress.toLowerCase(),
-        display_name: currentProfileName,
+      await darkonnetApi.createComment({
+        marketId: market.id,
+        walletAddress: commentWalletAddress,
+        displayName: currentProfileName,
         body: text,
       });
-
-      if (postError) throw postError;
 
       setCommentDraft("");
       setCommentSort("new");
@@ -392,17 +389,14 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     const parentId = parentComment?.parentId ?? targetId;
     const replyAuthor = currentProfileName;
 
-    const supabase = createClient();
     try {
-      const { error: postError } = await supabase.from("comments").insert({
-        market_id: market.id,
-        wallet_address: commentWalletAddress.toLowerCase(),
-        display_name: replyAuthor,
+      await darkonnetApi.createComment({
+        marketId: market.id,
+        walletAddress: commentWalletAddress,
+        displayName: replyAuthor,
         body: text,
-        parent_id: parentId,
+        parentId,
       });
-
-      if (postError) throw postError;
 
       if (parentAuthor === currentProfileName) {
         addNotification({
@@ -431,23 +425,14 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
     }
 
     const nextLiked = !comment.liked;
-    const supabase = createClient();
 
     try {
-      const { data: currentComment } = await supabase.from("comments").select("liked_by").eq("id", commentId).single();
-
-      let likedBy = currentComment?.liked_by || [];
-      if (nextLiked) {
-        if (!likedBy.includes(activeCommentWalletAddress)) {
-          likedBy.push(activeCommentWalletAddress);
-        }
-      } else {
-        likedBy = likedBy.filter((w: string) => w !== activeCommentWalletAddress);
-      }
-
-      const { error: updateError } = await supabase.from("comments").update({ liked_by: likedBy }).eq("id", commentId);
-
-      if (updateError) throw updateError;
+      await darkonnetApi.setCommentLike({
+        marketId: market.id,
+        commentId,
+        walletAddress: activeCommentWalletAddress,
+        liked: nextLiked,
+      });
       setCommentsMessage("");
     } catch (err) {
       setCommentsMessage(err instanceof Error ? err.message : "Unable to update comment like.");
