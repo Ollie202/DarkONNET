@@ -172,7 +172,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
       } catch (err) {
         if (!active) return;
         setMarkets([]);
-        setError(err instanceof Error ? err.message : "Unable to load markets from Supabase.");
+        setError("Failed to fetch Markets");
       } finally {
         if (active) setIsLoading(false);
       }
