@@ -116,7 +116,22 @@ class ProviderErrorBoundary extends Component<{ children: React.ReactNode }, { h
 
   render() {
     if (this.state.hasError) {
-      return this.props.children;
+      return (
+        <div className="flex min-h-screen items-center justify-center text-center p-8">
+          <div>
+            <p className="text-lg font-semibold text-[#0A0A0A] dark:text-[#FAFAFA]">
+              Something went wrong loading the app.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-md bg-[#FFD60A] px-4 py-2 text-sm font-semibold text-[#0A0A0A]"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
     }
     return this.props.children;
   }

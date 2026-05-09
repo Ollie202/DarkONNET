@@ -67,44 +67,35 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
         return;
       }
 
-      const fetchAndSubscribe = async () => {
-        // 1. Fetch initial notifications from Supabase
-        const { data: initialNotifs } = await supabase
-          .from("notifications")
-          .select("*")
-          .eq("wallet_address", normalizedAddress)
-          .order("created_at", { ascending: false });
+      let active = true;
+      const channel = supabase
+        .channel(`notifications:${normalizedAddress}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `wallet_address=eq.${normalizedAddress}`,
+          },
+          (payload: { new: Record<string, unknown> }) => {
+            if (active) setNotifications(prev => [mapNotification(payload.new), ...prev]);
+          },
+        )
+        .subscribe();
 
-        if (initialNotifs) {
-          setNotifications(initialNotifs.map(mapNotification));
-        }
+      supabase
+        .from("notifications")
+        .select("*")
+        .eq("wallet_address", normalizedAddress)
+        .order("created_at", { ascending: false })
+        .then(({ data: initialNotifs }) => {
+          if (active && initialNotifs) setNotifications(initialNotifs.map(mapNotification));
+        });
 
-        // 2. Subscribe to new notifications
-        const channel = supabase
-          .channel(`notifications:${normalizedAddress}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "notifications",
-              filter: `wallet_address=eq.${normalizedAddress}`,
-            },
-            (payload: { new: Record<string, unknown> }) => {
-              console.log("Realtime notification received:", payload);
-              setNotifications(prev => [mapNotification(payload.new), ...prev]);
-            },
-          )
-          .subscribe();
-
-        return () => {
-          supabase.removeChannel(channel);
-        };
-      };
-
-      const cleanupPromise = fetchAndSubscribe();
       return () => {
-        cleanupPromise.then(cleanup => cleanup?.());
+        active = false;
+        supabase.removeChannel(channel);
       };
     },
     [supabase],

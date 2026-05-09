@@ -305,9 +305,8 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "markets", filter: `market_id=eq.${market.id}` },
-        (payload: { new: Record<string, unknown> }) => {
-          // Handle market status/metadata updates if needed
-          console.log("Market updated:", payload.new);
+        () => {
+          loadComments();
         },
       )
       .subscribe();
@@ -677,7 +676,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
                   ) : market.status === "declined" ? (
                     <>
                       This market request was declined.
-                      {market.adminNote && (
+                      {market.adminNote && address && market.creatorKey?.toLowerCase() === address.toLowerCase() && (
                         <span className="block font-semibold text-[#DC2626] dark:text-[#EF4444]">
                           Admin note: {market.adminNote}
                         </span>
