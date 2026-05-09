@@ -1,8 +1,15 @@
-import { useDisconnect } from "wagmi";
-import { ArrowLeftOnRectangleIcon, ChevronDownIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { useDisconnect, useSwitchChain } from "wagmi";
+import {
+  ArrowLeftOnRectangleIcon,
+  ArrowsRightLeftIcon,
+  ChevronDownIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
+import { sepolia } from "~~/utils/chains";
 
 export const WrongNetworkDropdown = () => {
   const { disconnect } = useDisconnect();
+  const { switchChain, isPending } = useSwitchChain();
 
   return (
     <div className="dropdown dropdown-end mr-2">
@@ -19,6 +26,17 @@ export const WrongNetworkDropdown = () => {
             <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <span>Switch to Sepolia from your wallet to use DarkONNET transactions.</span>
           </span>
+        </li>
+        <li>
+          <button
+            className="smooth-action menu-item btn-sm rounded-xl! flex gap-3 py-3"
+            type="button"
+            disabled={isPending}
+            onClick={() => switchChain({ chainId: sepolia.id })}
+          >
+            <ArrowsRightLeftIcon className="h-6 w-4 ml-2 sm:ml-0" />
+            <span>{isPending ? "Opening wallet..." : "Switch to Sepolia"}</span>
+          </button>
         </li>
         <li>
           <button
