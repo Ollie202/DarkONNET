@@ -45,6 +45,7 @@ export const marketImages: Record<string, string> = {
   "red-sea-normalizes": "https://images.unsplash.com/photo-1494412651409-8963ce7935a7?auto=format&fit=crop&w=900&q=80",
   "sol-etf-2026": "https://images.unsplash.com/photo-1642104704074-907c0698cbd9?auto=format&fit=crop&w=900&q=80",
   "nba-finals-east": "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=900&q=80",
+  "formula-1-race": "/f1-grand-prix.jpg",
   "apple-ai-device": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
   "uk-election-2026": "https://images.unsplash.com/photo-1486299267070-83823f5448dd?auto=format&fit=crop&w=900&q=80",
   "drake-album-2026": "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=900&q=80",
@@ -65,6 +66,10 @@ export const fallbackImages: Record<Market["category"], string> = {
   finance: marketImages["global-growth-31"],
   geopolitics: marketImages["ru-ua-ceasefire-2026"],
   esports: marketImages["lol-worlds-korea"],
+};
+
+export const sportFallbackImages: Partial<Record<NonNullable<Market["sportType"]>, string>> = {
+  formula1: marketImages["formula-1-race"],
 };
 
 const marketContract = deploymentFor(ConfidentialPredictionMarket, sepolia.id);
@@ -112,7 +117,11 @@ export const MarketCard = ({
   const catClass = categoryStyles[market.category];
   const routeId = market.slug || market.id;
   const imageUrl =
-    market.coverImageDataUrl ?? marketImages[routeId] ?? marketImages[market.id] ?? fallbackImages[market.category];
+    market.coverImageDataUrl ??
+    marketImages[routeId] ??
+    marketImages[market.id] ??
+    (market.sportType ? sportFallbackImages[market.sportType] : undefined) ??
+    fallbackImages[market.category];
   const marketPath = `/markets/${routeId}`;
   const marketInfoRead = useReadContract({
     address: marketContract?.address,

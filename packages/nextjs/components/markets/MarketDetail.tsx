@@ -9,7 +9,7 @@ import { ArrowLeft, CalendarClock, ChevronDown, Lock, MessageCircle, ShieldCheck
 import { bytesToHex, parseUnits } from "viem";
 import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
-import { fallbackImages, marketImages } from "~~/components/markets/MarketCard";
+import { fallbackImages, marketImages, sportFallbackImages } from "~~/components/markets/MarketCard";
 import { MatchupVisual } from "~~/components/markets/MatchupVisual";
 import { SentimentBar, useLiveProbability } from "~~/components/markets/SentimentBar";
 import { useNotifications } from "~~/components/notifications/NotificationsContext";
@@ -197,7 +197,10 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
   const isEnded = isMarketEnded(market.endsAt);
   const resolutionLabel = getResolutionLabel(marketInfo, market.resolution);
   const imageUrl =
-    market.coverImageDataUrl ?? marketImages[market.slug || market.id] ?? fallbackImages[market.category];
+    market.coverImageDataUrl ??
+    marketImages[market.slug || market.id] ??
+    (market.sportType ? sportFallbackImages[market.sportType] : undefined) ??
+    fallbackImages[market.category];
   const parsedAmount = Number(amount);
   const cUSDTAmount = parsedAmount || 0;
   const hasCreatorFee = Boolean(market.creatorKey);
