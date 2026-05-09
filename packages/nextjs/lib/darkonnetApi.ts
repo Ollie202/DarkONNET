@@ -364,6 +364,76 @@ const mapSupabaseMarketToApi = (m: any): ApiMarket => ({
 
 export const mapSupabaseMarketToMarket = (market: any): Market => mapApiMarket(mapSupabaseMarketToApi(market));
 
+const mapSupabaseCommentToApi = (comment: any): ApiComment => ({
+  id: comment.id,
+  marketId: comment.market_id,
+  parentId: comment.parent_id,
+  walletAddress: comment.wallet_address,
+  displayName: comment.display_name,
+  body: comment.body,
+  likedBy: comment.liked_by || [],
+  createdAt: comment.created_at,
+  updatedAt: comment.updated_at,
+});
+
+const createCommentInSupabase = async (input: {
+  marketId: string;
+  walletAddress: string;
+  displayName: string;
+  body: string;
+  parentId?: string | null;
+}) => {
+  const { data, error } = await supabase
+    .from("comments")
+    .insert({
+      market_id: input.marketId,
+      wallet_address: input.walletAddress.toLowerCase(),
+      display_name: input.displayName,
+      body: input.body,
+      parent_id: input.parentId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapSupabaseCommentToApi(data);
+};
+
+const setCommentLikeInSupabase = async (input: {
+  marketId: string;
+  commentId: string;
+  walletAddress: string;
+  liked: boolean;
+}) => {
+  const { data: current } = await supabase.from("comments").select("liked_by").eq("id", input.commentId).single();
+  let likedBy = current?.liked_by || [];
+  const walletAddress = input.walletAddress.toLowerCase();
+  if (input.liked) {
+    if (!likedBy.includes(walletAddress)) likedBy.push(walletAddress);
+  } else {
+    likedBy = likedBy.filter((wallet: string) => wallet !== walletAddress);
+  }
+
+  const { data, error } = await supabase
+    .from("comments")
+    .update({ liked_by: likedBy })
+    .eq("id", input.commentId)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapSupabaseCommentToApi(data);
+};
+
+const addParticipantInSupabase = async (marketId: string, walletAddress: string) => {
+  const { data: current } = await supabase.from("markets").select("participants").eq("market_id", marketId).single();
+  const normalizedWallet = walletAddress.toLowerCase();
+  const participants = current?.participants || [];
+  if (!participants.includes(normalizedWallet)) {
+    participants.push(normalizedWallet);
+    const { error } = await supabase.from("markets").update({ participants }).eq("market_id", marketId);
+    if (error) throw error;
+  }
+};
+
 export const darkonnetApi = {
   baseUrl: apiBaseUrl,
   wsNotificationsUrl(walletAddress: string) {
@@ -499,33 +569,45 @@ export const darkonnetApi = {
     body: string;
     parentId?: string | null;
   }) {
-    const { comment } = await apiRequest<{ comment: ApiComment }>(
-      `/api/markets/${encodeURIComponent(input.marketId)}/comments`,
-      {
-        method: "POST",
-        body: input,
-        walletAddress: input.walletAddress,
-      },
-    );
-    return comment;
+    try {
+      const { comment } = await apiRequest<{ comment: ApiComment }>(
+        `/api/markets/${encodeURIComponent(input.marketId)}/comments`,
+        {
+          method: "POST",
+          body: input,
+          walletAddress: input.walletAddress,
+        },
+      );
+      return comment;
+    } catch {
+      return createCommentInSupabase(input);
+    }
   },
   async setCommentLike(input: { marketId: string; commentId: string; walletAddress: string; liked: boolean }) {
-    const { comment } = await apiRequest<{ comment: ApiComment }>(
-      `/api/markets/${encodeURIComponent(input.marketId)}/comments/${encodeURIComponent(input.commentId)}/like`,
-      {
-        method: "POST",
-        body: { walletAddress: input.walletAddress, liked: input.liked },
-        walletAddress: input.walletAddress,
-      },
-    );
-    return comment;
+    try {
+      const { comment } = await apiRequest<{ comment: ApiComment }>(
+        `/api/markets/${encodeURIComponent(input.marketId)}/comments/${encodeURIComponent(input.commentId)}/like`,
+        {
+          method: "POST",
+          body: { walletAddress: input.walletAddress, liked: input.liked },
+          walletAddress: input.walletAddress,
+        },
+      );
+      return comment;
+    } catch {
+      return setCommentLikeInSupabase(input);
+    }
   },
   async addParticipant(marketId: string, walletAddress: string) {
-    await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}/participants`, {
-      method: "POST",
-      body: { walletAddress },
-      walletAddress,
-    });
+    try {
+      await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}/participants`, {
+        method: "POST",
+        body: { walletAddress },
+        walletAddress,
+      });
+    } catch {
+      await addParticipantInSupabase(marketId, walletAddress);
+    }
   },
   async listNotifications(walletAddress: string) {
     const { notifications } = await apiRequest<{ notifications: ApiNotification[] }>(
