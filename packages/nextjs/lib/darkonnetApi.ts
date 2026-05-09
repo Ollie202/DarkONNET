@@ -4,7 +4,11 @@ import { type Market, type MarketCategory, parseMarketVolume } from "~~/lib/mock
 import { createClient } from "~~/utils/supabase/client";
 
 const supabase = createClient();
-const apiBaseUrl = (process.env.NEXT_PUBLIC_DARKONNET_API_URL || "http://localhost:8787").replace(/\/+$/, "");
+const defaultApiBaseUrl =
+  process.env.NODE_ENV === "production"
+    ? "https://darkonnet-backend-production.up.railway.app"
+    : "http://localhost:8787";
+const apiBaseUrl = (process.env.NEXT_PUBLIC_DARKONNET_API_URL || defaultApiBaseUrl).replace(/\/+$/, "");
 
 export type ApiMarket = {
   marketId: string;
