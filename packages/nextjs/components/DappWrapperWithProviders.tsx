@@ -128,16 +128,16 @@ let lastWalletToastTime = 0;
 const showWalletExtensionToast = (reason: unknown) => {
   const now = Date.now();
   if (now - lastWalletToastTime < 10000) return; // Prevent spamming in console
-  
+
   if (isMetaMaskConnectFailure(reason)) {
     lastWalletToastTime = now;
-    // We log this to the console instead of showing a toast to prevent background noise 
+    // We log this to the console instead of showing a toast to prevent background noise
     // from interrupting the user's browsing experience.
-    console.warn("FHE SDK: MetaMask connection is required for encrypted features but is currently locked or unavailable.");
+    console.warn(
+      "FHE SDK: MetaMask connection is required for encrypted features but is currently locked or unavailable.",
+    );
   }
 };
-
-
 
 const WalletErrorShield = () => {
   useEffect(() => {

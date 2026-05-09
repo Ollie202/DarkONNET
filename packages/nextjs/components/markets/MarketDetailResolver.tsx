@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { MarketDetail } from "~~/components/markets/MarketDetail";
 import { darkonnetApi } from "~~/lib/darkonnetApi";

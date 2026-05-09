@@ -337,7 +337,11 @@ export const getMarketVolumeScore = (market: Pick<Market, "id" | "encryptedVolum
   const parsed = parseMarketVolume(market.encryptedVolumeLabel);
   if (parsed > 0) return parsed;
 
-  if (!market.encryptedVolumeLabel || market.encryptedVolumeLabel === "Encrypted" || market.encryptedVolumeLabel === "0 cUSDT") {
+  if (
+    !market.encryptedVolumeLabel ||
+    market.encryptedVolumeLabel === "Encrypted" ||
+    market.encryptedVolumeLabel === "0 cUSDT"
+  ) {
     return 0;
   }
 
@@ -345,7 +349,11 @@ export const getMarketVolumeScore = (market: Pick<Market, "id" | "encryptedVolum
 };
 
 export const formatMarketVolume = (market: Pick<Market, "id" | "encryptedVolumeLabel" | "tradingVolume">): string => {
-  if (market.encryptedVolumeLabel && market.encryptedVolumeLabel !== "Encrypted" && market.encryptedVolumeLabel !== "0 cUSDT") {
+  if (
+    market.encryptedVolumeLabel &&
+    market.encryptedVolumeLabel !== "Encrypted" &&
+    market.encryptedVolumeLabel !== "0 cUSDT"
+  ) {
     return market.encryptedVolumeLabel;
   }
   if (typeof market.tradingVolume === "number" && Number.isFinite(market.tradingVolume) && market.tradingVolume > 0) {

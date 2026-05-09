@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { CheckCircle2, LockKeyhole, RotateCcw, ShieldAlert, XCircle, Search } from "lucide-react";
+import { CheckCircle2, LockKeyhole, RotateCcw, Search, ShieldAlert, XCircle } from "lucide-react";
 import { isAddress } from "viem";
 import { useAccount, useChainId, useReadContracts, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
@@ -55,9 +55,24 @@ export default function AdminMarketRequestsPage() {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const pendingRequests = useMemo(() => requests.filter(request => request.status === "pending" && (request.question.toLowerCase().includes(searchQuery.toLowerCase()) || request.id.toLowerCase().includes(searchQuery.toLowerCase()))), [requests, searchQuery]);
+  const pendingRequests = useMemo(
+    () =>
+      requests.filter(
+        request =>
+          request.status === "pending" &&
+          (request.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            request.id.toLowerCase().includes(searchQuery.toLowerCase())),
+      ),
+    [requests, searchQuery],
+  );
   const reviewedRequests = useMemo(
-    () => requests.filter(request => (request.status === "open" || request.status === "declined") && (request.question.toLowerCase().includes(searchQuery.toLowerCase()) || request.id.toLowerCase().includes(searchQuery.toLowerCase()))),
+    () =>
+      requests.filter(
+        request =>
+          (request.status === "open" || request.status === "declined") &&
+          (request.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            request.id.toLowerCase().includes(searchQuery.toLowerCase())),
+      ),
     [requests, searchQuery],
   );
 
@@ -329,7 +344,7 @@ export default function AdminMarketRequestsPage() {
             type="text"
             placeholder="Search markets by question or ID..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             className="h-11 w-full rounded-md border border-[#E5E5E5] bg-white pl-10 pr-4 text-sm text-[#0A0A0A] outline-none focus:border-[#FFD60A] dark:border-[#1F1F1F] dark:bg-[#141414] dark:text-[#FAFAFA]"
           />
         </div>
