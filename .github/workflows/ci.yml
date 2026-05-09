@@ -62,6 +62,8 @@ jobs:
           # actually happen during `next build`.
           NEXT_PUBLIC_ALCHEMY_API_KEY: ci-stub
           NEXT_PUBLIC_INFURA_API_KEY: ci-stub
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-stub
         run: pnpm --filter ./packages/nextjs build
 
       - name: prettier check
