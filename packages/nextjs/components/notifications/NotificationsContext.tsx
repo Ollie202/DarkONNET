@@ -55,38 +55,35 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
     ]);
   }, []);
 
-  const connectWalletNotifications = useCallback(
-    (address?: string) => {
-      const normalizedAddress = address?.toLowerCase() || "";
-      setWalletAddress(normalizedAddress);
+  const connectWalletNotifications = useCallback((address?: string) => {
+    const normalizedAddress = address?.toLowerCase() || "";
+    setWalletAddress(normalizedAddress);
 
-      if (!normalizedAddress) {
-        setNotifications([]);
-        return;
-      }
+    if (!normalizedAddress) {
+      setNotifications([]);
+      return;
+    }
 
-      let active = true;
-      const loadNotifications = () => {
-        darkonnetApi
-          .listNotifications(normalizedAddress)
-          .then((initialNotifs: ApiNotification[]) => {
-            if (active) setNotifications(initialNotifs.map(mapNotification));
-          })
-          .catch(() => {
-            if (active) setNotifications([]);
-          });
-      };
+    let active = true;
+    const loadNotifications = () => {
+      darkonnetApi
+        .listNotifications(normalizedAddress)
+        .then((initialNotifs: ApiNotification[]) => {
+          if (active) setNotifications(initialNotifs.map(mapNotification));
+        })
+        .catch(() => {
+          if (active) setNotifications([]);
+        });
+    };
 
-      loadNotifications();
-      const interval = window.setInterval(loadNotifications, 30_000);
+    loadNotifications();
+    const interval = window.setInterval(loadNotifications, 30_000);
 
-      return () => {
-        active = false;
-        window.clearInterval(interval);
-      };
-    },
-    [],
-  );
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const markAsRead = useCallback(
     async (id: string) => {

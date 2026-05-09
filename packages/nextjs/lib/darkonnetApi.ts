@@ -211,7 +211,8 @@ const createApiSession = async (walletAddress: string): Promise<ApiSession> => {
   return session;
 };
 
-const getApiSession = async (walletAddress: string) => getStoredSession(walletAddress) || createApiSession(walletAddress);
+const getApiSession = async (walletAddress: string) =>
+  getStoredSession(walletAddress) || createApiSession(walletAddress);
 
 const apiRequest = async <T>(
   path: string,
