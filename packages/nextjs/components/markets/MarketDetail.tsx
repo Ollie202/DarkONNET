@@ -273,7 +273,7 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
 
         if (fetchError) throw fetchError;
         if (active && backendComments) {
-          const mapped: MarketComment[] = backendComments.map(c => ({
+          const mapped: MarketComment[] = backendComments.map((c: any) => ({
             id: c.id,
             author: c.display_name,
             walletAddress: c.wallet_address,

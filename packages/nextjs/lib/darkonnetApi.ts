@@ -241,6 +241,8 @@ const mapSupabaseMarketToApi = (m: any): ApiMarket => ({
   updatedAt: m.updated_at,
 });
 
+export const mapSupabaseMarketToMarket = (market: any): Market => mapApiMarket(mapSupabaseMarketToApi(market));
+
 export const darkonnetApi = {
   baseUrl: "supabase",
   wsNotificationsUrl(walletAddress: string) {
@@ -256,7 +258,7 @@ export const darkonnetApi = {
     }
     const { data, error } = await query.order("created_at", { ascending: false });
     if (error) throw error;
-    return (data || []).map(mapSupabaseMarketToApi).map(mapApiMarket);
+    return (data || []).map(mapSupabaseMarketToMarket);
   },
   async getMarket(marketId: string) {
     const { data, error } = await supabase

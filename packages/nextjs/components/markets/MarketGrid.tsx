@@ -1,19 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useIsAllowed } from "@zama-fhe/react-sdk";
-import { ShieldCheck } from "lucide-react";
 import { useAccount } from "wagmi";
 import { type CategoryFilter, CategoryTabs } from "~~/components/markets/CategoryTabs";
 import { MarketCard } from "~~/components/markets/MarketCard";
 import { useProfile } from "~~/components/profile/ProfileContext";
 import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
 import { type OnchainPoolSnapshot, useOnchainMarketVolumes } from "~~/hooks/markets/useOnchainMarketVolumes";
-import { darkonnetApi } from "~~/lib/darkonnetApi";
-import { type Market, getMarketVolumeScore } from "~~/lib/mockMarkets";
+import { mapSupabaseMarketToMarket } from "~~/lib/darkonnetApi";
+import { type Market, getMarketVolumeScore, isMarketEnded } from "~~/lib/mockMarkets";
 import { sepolia } from "~~/utils/chains";
 import { deploymentFor } from "~~/utils/contract";
 import { createClient } from "~~/utils/supabase/client";
@@ -42,6 +41,13 @@ const emptyOnchainData: OnchainMarketGridData = {
   probabilitiesByMarketId: {},
   volumesByMarketId: {},
 };
+
+const isLiveMarket = (market: Market) =>
+  market.status !== "pending" &&
+  market.status !== "declined" &&
+  market.status !== "resolved" &&
+  !market.resolution &&
+  !isMarketEnded(market.endsAt);
 
 const OnchainMarketDataBridge = ({
   markets,
@@ -151,33 +157,6 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
     let active = true;
     const supabase = createClient();
 
-    const mapSupabaseMarket = (m: any): Market => ({
-      id: m.market_id,
-      slug: m.slug,
-      onchainMarketId: m.onchain_market_id,
-      question: m.title,
-      description: m.description,
-      category: m.category,
-      yesProbability: m.metadata?.yesProbability || 0.5,
-      encryptedVolumeLabel: m.metadata?.encryptedVolumeLabel || "Encrypted",
-      tradingVolume: m.metadata?.tradingVolume || 0,
-      endsAt: m.metadata?.endsAt || m.starts_at || new Date().toISOString(),
-      signalLabel: m.metadata?.signalLabel || "Awaiting activity",
-      sentimentSignals: m.metadata?.sentimentSignals || { news: 50, volume: 50, crowd: 50 },
-      trending: m.metadata?.trending || false,
-      rules: m.metadata?.rules || "",
-      sources: m.metadata?.sources || [],
-      coverImageDataUrl: m.metadata?.coverImageDataUrl,
-      homeLogoUrl: m.home_logo_url,
-      awayLogoUrl: m.away_logo_url,
-      homeName: m.home_name,
-      awayName: m.away_name,
-      creatorKey: m.creator_wallet_address,
-      status: m.status,
-      resolution: m.resolution,
-      resolvedAt: m.resolved_at,
-    });
-
     const syncMarkets = async () => {
       setIsLoading(true);
       setError("");
@@ -189,7 +168,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
         if (fetchError) throw fetchError;
         if (!active) return;
-        setMarkets(data.map(mapSupabaseMarket));
+        setMarkets(data.map(mapSupabaseMarketToMarket));
       } catch (err) {
         if (!active) return;
         setMarkets([]);
@@ -206,11 +185,13 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "markets" },
-        (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (payload.eventType === "INSERT") {
-            setMarkets(prev => [mapSupabaseMarket(payload.new), ...prev]);
+            setMarkets(prev => [mapSupabaseMarketToMarket(payload.new), ...prev]);
           } else if (payload.eventType === "UPDATE") {
-            setMarkets(prev => prev.map(m => (m.id === payload.new.market_id ? mapSupabaseMarket(payload.new) : m)));
+            setMarkets(prev =>
+              prev.map(m => (m.id === payload.new.market_id ? mapSupabaseMarketToMarket(payload.new) : m)),
+            );
           } else if (payload.eventType === "DELETE") {
             setMarkets(prev => prev.filter(m => m.id === payload.old.market_id));
           }
@@ -226,14 +207,15 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
   const visible = useMemo(() => {
     if (isCreatorMarketView && creatorTab === "mine" && !isWalletConnected) return [];
+    const liveMarkets = markets.filter(isLiveMarket);
     const sourceMarkets = isCreatorMarketView
-      ? markets.filter(market => {
+      ? liveMarkets.filter(market => {
           const isAcceptedCreatorMarket = market.status === "open" && Boolean(market.creatorKey);
           if (!isAcceptedCreatorMarket) return false;
           if (creatorTab === "mine") return Boolean(creatorKey) && market.creatorKey?.toLowerCase() === creatorKey;
           return true;
         })
-      : markets;
+      : liveMarkets;
     if (filter === "all") return sourceMarkets;
     if (filter === "trending") {
       const hasOnchainVolumes = Object.keys(onchainVolumesByMarketId).length > 0;
