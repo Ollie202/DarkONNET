@@ -152,8 +152,11 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         })
         .catch(error => {
           if (loadRequestId.current !== requestId) return;
-          setProfileError(error instanceof Error ? error.message : "Unable to load backend profile.");
-          setNeedsUsername(!storedProfile);
+          console.warn("Unable to load backend profile.", error);
+          if (!cachedProfile) {
+            setProfile(defaultProfile);
+          }
+          setNeedsUsername(!(cachedProfile?.profileName || storedProfile));
         })
         .finally(() => {
           if (loadRequestId.current === requestId) setIsProfileLoading(false);
