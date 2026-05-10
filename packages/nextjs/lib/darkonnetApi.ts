@@ -461,9 +461,10 @@ export const darkonnetApi = {
     const { data, error } = await supabase
       .from("markets")
       .select("*")
-      .or(`market_id.eq.${marketId},onchain_market_id.eq.${marketId}`)
-      .single();
+      .or(`market_id.eq.${marketId},onchain_market_id.eq.${marketId},slug.eq.${marketId}`)
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("This market does not exist in the DarkONNET backend, or it may have been removed.");
     return mapApiMarket(mapSupabaseMarketToApi(data));
   },
   async upsertMarket(input: LocalMarket) {
