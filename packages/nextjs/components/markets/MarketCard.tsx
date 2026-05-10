@@ -122,7 +122,7 @@ export const MarketCard = ({
     marketImages[market.id] ??
     (market.sportType ? sportFallbackImages[market.sportType] : undefined) ??
     fallbackImages[market.category];
-  const marketPath = `/markets/${routeId}`;
+  const marketPath = `/market?id=${encodeURIComponent(routeId)}`;
   const marketInfoRead = useReadContract({
     address: marketContract?.address,
     abi: marketContract?.abi,
@@ -226,14 +226,14 @@ export const MarketCard = ({
       {isTradable ? (
         <div className="relative z-30 flex gap-2">
           <Link
-            href={`${marketPath}?side=yes`}
+            href={`${marketPath}&side=yes`}
             className="smooth-action flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#16A34A]/30 bg-[#16A34A]/5 px-3 py-2 text-sm text-[#16A34A] hover:border-[#16A34A]/60 hover:bg-[#16A34A]/15 hover:shadow-[0_12px_24px_-14px_rgba(22,163,74,0.75)] dark:border-[#22C55E]/30 dark:bg-[#22C55E]/5 dark:text-[#22C55E] dark:hover:bg-[#22C55E]/10"
           >
             <span>Yes</span>
             <span className="font-mono font-semibold">{yesPct}%</span>
           </Link>
           <Link
-            href={`${marketPath}?side=no`}
+            href={`${marketPath}&side=no`}
             className="smooth-action flex flex-1 cursor-pointer items-center justify-between rounded-[0.5rem] border border-[#DC2626]/30 bg-[#DC2626]/5 px-3 py-2 text-sm text-[#DC2626] hover:border-[#DC2626]/60 hover:bg-[#DC2626]/15 hover:shadow-[0_12px_24px_-14px_rgba(220,38,38,0.75)] dark:border-[#EF4444]/30 dark:bg-[#EF4444]/5 dark:text-[#EF4444] dark:hover:bg-[#EF4444]/10"
           >
             <span>No</span>

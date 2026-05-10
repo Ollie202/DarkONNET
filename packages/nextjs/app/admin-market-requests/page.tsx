@@ -437,7 +437,7 @@ export default function AdminMarketRequestsPage() {
                     Decline
                   </button>
                   <Link
-                    href={`/markets/${request.slug || request.id}?from=admin`}
+                    href={`/market?id=${encodeURIComponent(request.slug || request.id)}&from=admin`}
                     className="smooth-action flex h-9 items-center justify-center rounded-md border border-[#E5E5E5] text-xs font-semibold text-[#525252] hover:text-[#0A0A0A] dark:border-[#1F1F1F] dark:text-[#A1A1A1] dark:hover:text-[#FFD60A]"
                   >
                     Preview
