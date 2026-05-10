@@ -4,17 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { useIsAllowed } from "@zama-fhe/react-sdk";
 import { useAccount } from "wagmi";
 import { type CategoryFilter, CategoryTabs } from "~~/components/markets/CategoryTabs";
 import { MarketCard } from "~~/components/markets/MarketCard";
 import { useProfile } from "~~/components/profile/ProfileContext";
-import { ConfidentialPredictionMarket } from "~~/contracts/ConfidentialPredictionMarket";
 import { type OnchainPoolSnapshot, useOnchainMarketVolumes } from "~~/hooks/markets/useOnchainMarketVolumes";
 import { mapSupabaseMarketToMarket } from "~~/lib/darkonnetApi";
 import { type Market, getMarketVolumeScore, isMarketEnded } from "~~/lib/mockMarkets";
-import { sepolia } from "~~/utils/chains";
-import { deploymentFor } from "~~/utils/contract";
 import { createClient } from "~~/utils/supabase/client";
 
 type MarketGridProps = {
@@ -72,9 +68,6 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const marketContract = deploymentFor(ConfidentialPredictionMarket, sepolia.id);
-  const tokenAddress = (marketContract?.address ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
-  const { data: isAllowed } = useIsAllowed({ contractAddresses: [tokenAddress] });
 
   // Derived state from URL
   const filter = (searchParams.get("filter") as CategoryFilter) || (source === "creator" ? "all" : "trending");
@@ -132,7 +125,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
   }, []);
 
   useEffect(() => {
-    if (isCreatorMarketView || !isMounted || isLoading || !isWalletConnected || !isAllowed || markets.length === 0) {
+    if (isCreatorMarketView || !isMounted || isLoading || !isWalletConnected || markets.length === 0) {
       setShouldLoadOnchainData(false);
       if (isCreatorMarketView) setOnchainData(emptyOnchainData);
       return;
@@ -151,7 +144,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
       if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     };
-  }, [isCreatorMarketView, isLoading, isMounted, markets.length, isWalletConnected, isAllowed]);
+  }, [isCreatorMarketView, isLoading, isMounted, markets.length, isWalletConnected]);
 
   useEffect(() => {
     let active = true;
