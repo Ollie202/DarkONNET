@@ -26,11 +26,7 @@ if (rawInfuraKey?.startsWith("http")) {
 }
 
 if (!rawInfuraKey) {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("Environment variable NEXT_PUBLIC_INFURA_API_KEY is required in production.");
-  } else {
-    console.warn("NEXT_PUBLIC_INFURA_API_KEY is not set. Falling back to public RPCs.");
-  }
+  console.warn("NEXT_PUBLIC_INFURA_API_KEY is not set. Falling back to Alchemy, configured RPCs, or public RPCs.");
 }
 
 const scaffoldConfig = {
