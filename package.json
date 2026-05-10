@@ -23,6 +23,7 @@
     "contracts:test": "cd packages/foundry && forge test -vv",
     "compile": "cd packages/foundry && forge build",
     "test": "cd packages/foundry && forge test",
+    "build": "pnpm next:build",
     "start": "pnpm --filter ./packages/nextjs dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

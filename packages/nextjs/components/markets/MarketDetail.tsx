@@ -19,7 +19,7 @@ import { EncryptedERC20 } from "~~/contracts/EncryptedERC20";
 import { useOnchainOddsSnapshot } from "~~/hooks/markets/useOnchainOddsSnapshot";
 import { useTimeRemaining } from "~~/hooks/markets/useTimeRemaining";
 import { useCUSDTBalance } from "~~/hooks/token/useCUSDTBalance";
-import { type ApiComment, darkonnetApi } from "~~/lib/darkonnetApi";
+import { darkonnetApi } from "~~/lib/darkonnetApi";
 import { type Market, formatMarketVolume, isMarketEnded } from "~~/lib/mockMarkets";
 import {
   PLATFORM_TOKEN_LABEL,
@@ -101,33 +101,6 @@ const relativeTime = (createdAt: string | number) => {
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 };
-
-const flattenComments = (
-  comments: ApiComment[],
-  activeWalletAddress = "",
-  parentAuthor?: string,
-  parentId?: string,
-): MarketComment[] =>
-  comments.flatMap(comment => {
-    const likedBy = Array.isArray(comment.likedBy) ? comment.likedBy.map(wallet => wallet.toLowerCase()) : [];
-    const mapped: MarketComment = {
-      id: comment.id,
-      author: comment.displayName,
-      walletAddress: comment.walletAddress,
-      createdAt: new Date(comment.createdAt).getTime(),
-      time: relativeTime(comment.createdAt),
-      text: comment.body,
-      likes: likedBy.length,
-      liked: Boolean(activeWalletAddress && likedBy.includes(activeWalletAddress.toLowerCase())),
-      replyTo: parentAuthor,
-      parentId: parentId || undefined,
-    };
-
-    return [
-      mapped,
-      ...flattenComments(comment.replies || [], activeWalletAddress, comment.displayName, parentId || comment.id),
-    ];
-  });
 
 export const MarketDetail = ({ market }: MarketDetailProps) => {
   const router = useRouter();

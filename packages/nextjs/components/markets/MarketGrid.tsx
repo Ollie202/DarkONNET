@@ -162,7 +162,7 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
         if (fetchError) throw fetchError;
         if (!active) return;
         setMarkets(data.map(mapSupabaseMarketToMarket));
-      } catch (err) {
+      } catch {
         if (!active) return;
         setMarkets([]);
         setError("Failed to fetch Markets");

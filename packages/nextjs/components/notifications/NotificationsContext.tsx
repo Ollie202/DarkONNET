@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { type ApiNotification, darkonnetApi } from "~~/lib/darkonnetApi";
 
 export type Notification = {
