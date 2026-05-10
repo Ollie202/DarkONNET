@@ -376,6 +376,67 @@ const mapSupabaseCommentToApi = (comment: any): ApiComment => ({
   updatedAt: comment.updated_at,
 });
 
+const mapSupabaseProfileToApi = (profile: any): ApiProfile => ({
+  walletAddress: profile.wallet_address,
+  profileName: profile.profile_name || "",
+  bio: profile.bio || "",
+  email: profile.email || "",
+  profileImageDataUrl: profile.profile_image_data_url || "",
+  receiveUpdates: profile.receive_updates ?? true,
+  receivePositionNotifications: profile.receive_position_notifications ?? true,
+  createdAt: profile.created_at,
+  updatedAt: profile.updated_at,
+});
+
+const getProfileFromSupabase = async (walletAddress: string) => {
+  const normalizedWallet = normalizeWalletAddress(walletAddress);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("wallet_address", normalizedWallet)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data) return mapSupabaseProfileToApi(data);
+
+  return {
+    walletAddress: normalizedWallet,
+    profileName: "",
+    bio: "",
+    email: "",
+    profileImageDataUrl: "",
+    receiveUpdates: true,
+    receivePositionNotifications: true,
+  } satisfies ApiProfile;
+};
+
+const saveProfileInSupabase = async (
+  walletAddress: string,
+  profile: Omit<ApiProfile, "walletAddress" | "createdAt" | "updatedAt">,
+) => {
+  const normalizedWallet = normalizeWalletAddress(walletAddress);
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        wallet_address: normalizedWallet,
+        profile_name: profile.profileName,
+        bio: profile.bio,
+        email: profile.email,
+        profile_image_data_url: profile.profileImageDataUrl,
+        receive_updates: profile.receiveUpdates,
+        receive_position_notifications: profile.receivePositionNotifications,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "wallet_address" },
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapSupabaseProfileToApi(data);
+};
+
 const createCommentInSupabase = async (input: {
   marketId: string;
   walletAddress: string;
@@ -628,21 +689,31 @@ export const darkonnetApi = {
     );
   },
   async getProfile(walletAddress: string) {
-    const { profile } = await apiRequest<{ profile: ApiProfile }>(
-      `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
-      { walletAddress },
-    );
-    return profile;
+    try {
+      return await getProfileFromSupabase(walletAddress);
+    } catch (error) {
+      console.warn("Unable to load Supabase profile, falling back to backend profile API.", error);
+      const { profile } = await apiRequest<{ profile: ApiProfile }>(
+        `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
+        { walletAddress },
+      );
+      return profile;
+    }
   },
   async saveProfile(walletAddress: string, profile: Omit<ApiProfile, "walletAddress" | "createdAt" | "updatedAt">) {
-    const { profile: savedProfile } = await apiRequest<{ profile: ApiProfile }>(
-      `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
-      {
-        method: "PUT",
-        body: profile,
-        walletAddress,
-      },
-    );
-    return savedProfile;
+    try {
+      return await saveProfileInSupabase(walletAddress, profile);
+    } catch (error) {
+      console.warn("Unable to save Supabase profile, falling back to backend profile API.", error);
+      const { profile: savedProfile } = await apiRequest<{ profile: ApiProfile }>(
+        `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
+        {
+          method: "PUT",
+          body: profile,
+          walletAddress,
+        },
+      );
+      return savedProfile;
+    }
   },
 };

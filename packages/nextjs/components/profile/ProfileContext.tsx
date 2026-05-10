@@ -184,8 +184,11 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         persistProfile(nextSavedProfile, walletAddress);
         setNeedsUsername(!nextSavedProfile.profileName);
       } catch (error) {
-        setProfileError(error instanceof Error ? error.message : "Unable to save backend profile.");
-        throw error;
+        console.warn("Unable to sync backend profile. Saved profile locally.", error);
+        setProfile(clean);
+        persistProfile(clean, walletAddress);
+        setNeedsUsername(!clean.profileName);
+        setProfileError("Profile saved locally. Backend sync is temporarily unavailable.");
       } finally {
         setIsProfileLoading(false);
       }
