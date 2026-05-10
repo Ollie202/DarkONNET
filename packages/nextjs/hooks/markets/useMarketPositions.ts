@@ -37,8 +37,21 @@ export type ChainPosition = {
 
 const marketContract = deploymentFor(ConfidentialPredictionMarket, sepolia.id);
 const CHAIN_READ_STALE_MS = 60_000;
+const POSITION_READ_TIMEOUT_MS = 12_000;
+const POSITION_READ_CHUNK_SIZE = 8;
+const POSITION_READ_CHUNK_DELAY_MS = 100;
 
 const formatStake = (value: bigint) => `${formatUnits(value, 6)} cUSDT`;
+
+const wait = (durationMs: number) => new Promise(resolve => window.setTimeout(resolve, durationMs));
+
+const withTimeout = async <T>(promise: Promise<T>, durationMs: number, message: string) =>
+  Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), durationMs);
+    }),
+  ]);
 
 type MarketInfo = readonly [bigint, string, string, bigint, boolean, number, boolean, boolean];
 export type PendingExit = readonly [bigint, number, `0x${string}`, `0x${string}`, `0x${string}`, boolean];
@@ -149,7 +162,11 @@ export const useMarketPositions = () => {
     if (!walletKey) return [];
     const entries = new Map<string, Market>();
     markets.forEach(market => {
-      if (market.onchainMarketId) {
+      const participantWallets = Array.isArray(market.participantWallets)
+        ? market.participantWallets.map(wallet => wallet.toLowerCase())
+        : [];
+
+      if (market.onchainMarketId && participantWallets.includes(walletKey)) {
         entries.set(market.onchainMarketId, market);
       }
     });
@@ -241,26 +258,40 @@ export const useMarketPositions = () => {
     setIsPositionReadLoading(true);
     setPositionReadError(null);
 
-    const results = await Promise.all(
-      positionTargets.map(async target => {
-        try {
-          const result = await publicClient.readContract({
-            address: marketContract!.address,
-            abi: marketContract!.abi,
-            functionName: "getMyPosition",
-            args: [BigInt(target.onchainMarketId), target.outcome],
-            account: address,
-          });
+    const results: PositionReadResult[] = [];
 
-          return { status: "success" as const, result };
-        } catch (error) {
-          return {
-            status: "failure" as const,
-            error: error instanceof Error ? error : new Error("Unable to read position from chain."),
-          };
-        }
-      }),
-    );
+    for (let index = 0; index < positionTargets.length; index += POSITION_READ_CHUNK_SIZE) {
+      const chunk = positionTargets.slice(index, index + POSITION_READ_CHUNK_SIZE);
+      const chunkResults = await Promise.all(
+        chunk.map(async target => {
+          try {
+            const result = await withTimeout(
+              publicClient.readContract({
+                address: marketContract!.address,
+                abi: marketContract!.abi,
+                functionName: "getMyPosition",
+                args: [BigInt(target.onchainMarketId), target.outcome],
+                account: address,
+              }),
+              POSITION_READ_TIMEOUT_MS,
+              "RPC timed out while reading encrypted positions.",
+            );
+
+            return { status: "success" as const, result };
+          } catch (error) {
+            return {
+              status: "failure" as const,
+              error: error instanceof Error ? error : new Error("Unable to read position from chain."),
+            };
+          }
+        }),
+      );
+
+      results.push(...chunkResults);
+      if (index + POSITION_READ_CHUNK_SIZE < positionTargets.length) {
+        await wait(POSITION_READ_CHUNK_DELAY_MS);
+      }
+    }
 
     setPositionReadResults(results);
     setPositionReadError(results.find(result => result.status === "failure")?.error ?? null);

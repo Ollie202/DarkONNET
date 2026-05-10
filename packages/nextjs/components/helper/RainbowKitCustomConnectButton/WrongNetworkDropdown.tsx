@@ -5,6 +5,7 @@ import {
   ChevronDownIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
+import { clearPersistentWalletConnection } from "~~/services/web3/walletPersistence";
 import { sepolia } from "~~/utils/chains";
 
 export const WrongNetworkDropdown = () => {
@@ -42,7 +43,10 @@ export const WrongNetworkDropdown = () => {
           <button
             className="smooth-action menu-item text-error btn-sm rounded-xl! flex gap-3 py-3"
             type="button"
-            onClick={() => disconnect()}
+            onClick={() => {
+              clearPersistentWalletConnection();
+              disconnect();
+            }}
           >
             <ArrowLeftOnRectangleIcon className="h-6 w-4 ml-2 sm:ml-0" />
             <span>Disconnect</span>

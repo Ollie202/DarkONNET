@@ -11,6 +11,7 @@ import { BlockieAvatar } from "~~/components/helper";
 import { useProfile } from "~~/components/profile/ProfileContext";
 import { useOutsideClick } from "~~/hooks/helper";
 import { useCUSDTBalance } from "~~/hooks/token/useCUSDTBalance";
+import { clearPersistentWalletConnection } from "~~/services/web3/walletPersistence";
 import { sepolia } from "~~/utils/chains";
 
 const shortAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -272,7 +273,10 @@ const ConnectedProfileMenu = ({ account }: ConnectedMenuProps) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => disconnect()}
+                    onClick={() => {
+                      clearPersistentWalletConnection();
+                      disconnect();
+                    }}
                     className="smooth-action flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md bg-[#DC2626] text-sm font-semibold text-white hover:bg-[#DC2626]/90"
                   >
                     <LogOut size={15} />

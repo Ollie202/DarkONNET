@@ -9,6 +9,7 @@ packages/*/.env
 packages/*/.turbo
 packages/*/coverage
 tmp*
+next-serve*.log
 .vscode
 
 # anvil dumped chain state (from scripts/chain.sh)

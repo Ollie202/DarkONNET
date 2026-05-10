@@ -8,14 +8,15 @@ import { IndexedDBStorage, RelayerWeb, SepoliaConfig, type ZamaSDKEvent } from "
 import { RelayerCleartext, hardhatCleartextConfig } from "@zama-fhe/sdk/cleartext";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { useTheme } from "next-themes";
-import toast, { Toaster } from "react-hot-toast";
-import { WagmiProvider, useChainId } from "wagmi";
+import { Toaster } from "react-hot-toast";
+import { WagmiProvider, useAccount, useChainId, useReconnect } from "wagmi";
 import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/helper";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 // Swap to `@zama-fhe/react-sdk/wagmi` once a patched stable ships — the fix
 // is already in the alpha track (≥ 3.0.0-alpha.16). See wagmiSigner.ts.
 import { WagmiSigner } from "~~/services/web3/wagmiSigner";
+import { rememberPersistentWalletConnection, shouldPersistWalletConnection } from "~~/services/web3/walletPersistence";
 
 // Module-scoped — the signer, keypair store and session store are chain-agnostic
 // and there's no reason to rebuild them on chain change. IndexedDBStorage lets
@@ -137,7 +138,6 @@ class ProviderErrorBoundary extends Component<{ children: React.ReactNode }, { h
   }
 }
 
-const WALLET_EXTENSION_TOAST_ID = "wallet-extension-connect-failure";
 let lastWalletToastTime = 0;
 
 const showWalletExtensionToast = (reason: unknown) => {
@@ -219,6 +219,46 @@ const WalletErrorShield = () => {
   return null;
 };
 
+const WalletConnectionPersistence = () => {
+  const { address, connector, status } = useAccount();
+  const { reconnect, isPending } = useReconnect();
+
+  useEffect(() => {
+    if (status !== "connected") return;
+
+    rememberPersistentWalletConnection({
+      address,
+      connectorId: connector?.id,
+    });
+  }, [address, connector?.id, status]);
+
+  useEffect(() => {
+    if (status !== "disconnected" || isPending || !shouldPersistWalletConnection()) return;
+
+    let attempts = 0;
+
+    const tryReconnect = () => {
+      if (!shouldPersistWalletConnection()) return;
+      attempts += 1;
+      reconnect();
+
+      if (attempts >= 12) {
+        window.clearInterval(intervalId);
+      }
+    };
+
+    const timeoutId = window.setTimeout(tryReconnect, 300);
+    const intervalId = window.setInterval(tryReconnect, 2500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
+  }, [isPending, reconnect, status]);
+
+  return null;
+};
+
 export const DappWrapperWithProviders = ({ children }: { children: React.ReactNode }) => {
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
@@ -229,12 +269,13 @@ export const DappWrapperWithProviders = ({ children }: { children: React.ReactNo
   }, []);
 
   return (
-    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           avatar={BlockieAvatar}
           theme={mounted ? (isDarkMode ? darkTheme() : lightTheme()) : darkTheme()}
         >
+          <WalletConnectionPersistence />
           <WalletErrorShield />
           <ProviderErrorBoundary>
             <ZamaRuntimeProvider>

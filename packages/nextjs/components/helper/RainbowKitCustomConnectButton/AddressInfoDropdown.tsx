@@ -5,6 +5,7 @@ import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { BlockieAvatar } from "~~/components/helper";
 import { useOutsideClick } from "~~/hooks/helper";
+import { clearPersistentWalletConnection } from "~~/services/web3/walletPersistence";
 
 type AddressInfoDropdownProps = {
   address: Address;
@@ -38,7 +39,10 @@ export const AddressInfoDropdown = ({ address, ensAvatar, displayName }: Address
             <button
               className="smooth-action menu-item text-error h-8 btn-sm rounded-xl! flex gap-3 py-3"
               type="button"
-              onClick={() => disconnect()}
+              onClick={() => {
+                clearPersistentWalletConnection();
+                disconnect();
+              }}
             >
               <ArrowLeftIcon className="h-6 w-4 ml-2 sm:ml-0" /> <span>Disconnect</span>
             </button>
