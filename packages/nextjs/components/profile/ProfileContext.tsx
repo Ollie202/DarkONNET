@@ -61,6 +61,19 @@ const profileFromApi = (profile: ApiProfile): ProfileSettings => ({
   receivePositionNotifications: profile.receivePositionNotifications,
 });
 
+const mergeMissingProfileFields = (
+  remoteProfile: ProfileSettings,
+  cachedProfile: ProfileSettings,
+): ProfileSettings => ({
+  ...remoteProfile,
+  profileName: remoteProfile.profileName || cachedProfile.profileName,
+  bio: remoteProfile.bio || cachedProfile.bio,
+  email: remoteProfile.email || cachedProfile.email,
+  profileImageDataUrl: remoteProfile.profileImageDataUrl || cachedProfile.profileImageDataUrl,
+});
+
+const profilesMatch = (left: ProfileSettings, right: ProfileSettings) => JSON.stringify(left) === JSON.stringify(right);
+
 const getWalletStorageKey = (address: string) => `profile:wallet:${address.toLowerCase()}`;
 
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
@@ -135,15 +148,24 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         .then(apiProfile => {
           if (loadRequestId.current !== requestId) return;
           const nextProfile = profileFromApi(apiProfile);
-          const profileToMigrate = cachedProfile?.profileName ? cachedProfile : null;
-          if (!nextProfile.profileName && profileToMigrate) {
-            return darkonnetApi.saveProfile(normalizedAddress, profileToMigrate).then(savedProfile => {
-              if (loadRequestId.current !== requestId) return;
-              const migratedProfile = profileFromApi(savedProfile);
-              setProfile(migratedProfile);
-              persistProfile(migratedProfile, normalizedAddress);
-              setNeedsUsername(!migratedProfile.profileName);
-            });
+          const profileToMigrate = cachedProfile ? mergeMissingProfileFields(nextProfile, cachedProfile) : null;
+          if (profileToMigrate && !profilesMatch(profileToMigrate, nextProfile)) {
+            return darkonnetApi
+              .saveProfile(normalizedAddress, profileToMigrate)
+              .then(savedProfile => {
+                if (loadRequestId.current !== requestId) return;
+                const migratedProfile = profileFromApi(savedProfile);
+                setProfile(migratedProfile);
+                persistProfile(migratedProfile, normalizedAddress);
+                setNeedsUsername(!migratedProfile.profileName);
+              })
+              .catch(error => {
+                if (loadRequestId.current !== requestId) return;
+                console.warn("Unable to migrate cached profile to backend.", error);
+                setProfile(profileToMigrate);
+                persistProfile(profileToMigrate, normalizedAddress);
+                setNeedsUsername(!profileToMigrate.profileName);
+              });
           }
 
           setProfile(nextProfile);
