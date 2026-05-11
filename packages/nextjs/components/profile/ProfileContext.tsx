@@ -188,7 +188,6 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         setProfile(clean);
         persistProfile(clean, walletAddress);
         setNeedsUsername(!clean.profileName);
-        setProfileError("Profile saved locally. Backend sync is temporarily unavailable.");
       } finally {
         setIsProfileLoading(false);
       }

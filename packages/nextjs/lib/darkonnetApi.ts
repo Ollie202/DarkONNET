@@ -690,21 +690,18 @@ export const darkonnetApi = {
   },
   async getProfile(walletAddress: string) {
     try {
-      return await getProfileFromSupabase(walletAddress);
-    } catch (error) {
-      console.warn("Unable to load Supabase profile, falling back to backend profile API.", error);
       const { profile } = await apiRequest<{ profile: ApiProfile }>(
         `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
         { walletAddress },
       );
       return profile;
+    } catch (error) {
+      console.warn("Unable to load backend profile, falling back to Supabase profile read.", error);
+      return getProfileFromSupabase(walletAddress);
     }
   },
   async saveProfile(walletAddress: string, profile: Omit<ApiProfile, "walletAddress" | "createdAt" | "updatedAt">) {
     try {
-      return await saveProfileInSupabase(walletAddress, profile);
-    } catch (error) {
-      console.warn("Unable to save Supabase profile, falling back to backend profile API.", error);
       const { profile: savedProfile } = await apiRequest<{ profile: ApiProfile }>(
         `/api/wallets/${encodeURIComponent(walletAddress)}/profile`,
         {
@@ -714,6 +711,9 @@ export const darkonnetApi = {
         },
       );
       return savedProfile;
+    } catch (error) {
+      console.warn("Unable to save backend profile, falling back to Supabase profile write.", error);
+      return saveProfileInSupabase(walletAddress, profile);
     }
   },
 };

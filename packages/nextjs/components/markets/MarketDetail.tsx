@@ -476,14 +476,15 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
         chainId: sepolia.id,
         gas: 15_000_000n,
       });
-      await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, chainId: sepolia.id });
 
-      setBetMessage("Approval confirmed. Encrypting prediction amount...");
-      const betInput = await encrypt.mutateAsync({
+      setBetMessage("Confirming approval while preparing encrypted prediction...");
+      const approvalReceipt = waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, chainId: sepolia.id });
+      const betInputPromise = encrypt.mutateAsync({
         values: [{ value: amountUnits, type: "euint64" }],
         contractAddress: marketContract.address,
         userAddress: participantWalletAddress as `0x${string}`,
       });
+      const [, betInput] = await Promise.all([approvalReceipt, betInputPromise]);
 
       setBetMessage("Sending encrypted prediction after approval...");
       const betHash = await writeContractAsync({
