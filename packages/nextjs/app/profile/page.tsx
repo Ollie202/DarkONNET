@@ -7,6 +7,46 @@ import { useAccount } from "wagmi";
 import { type ProfileSettings, useProfile } from "~~/components/profile/ProfileContext";
 
 const profileSnapshot = (profile: ProfileSettings) => JSON.stringify(profile);
+const MAX_PROFILE_IMAGE_SIZE = 900_000;
+const PROFILE_IMAGE_MAX_DIMENSION = 512;
+
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Unable to read image file."));
+    image.src = src;
+  });
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error("Unable to read image file."));
+    reader.readAsDataURL(file);
+  });
+
+const compressProfileImage = async (file: File) => {
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImage(originalDataUrl);
+  const scale = Math.min(1, PROFILE_IMAGE_MAX_DIMENSION / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Unable to process image file.");
+
+  context.drawImage(image, 0, 0, width, height);
+  const compressedDataUrl = canvas.toDataURL("image/webp", 0.82);
+  if (compressedDataUrl.length <= MAX_PROFILE_IMAGE_SIZE) return compressedDataUrl;
+
+  const smallerDataUrl = canvas.toDataURL("image/jpeg", 0.72);
+  if (smallerDataUrl.length <= MAX_PROFILE_IMAGE_SIZE) return smallerDataUrl;
+
+  throw new Error("Profile picture is too large. Choose a smaller image.");
+};
 
 export default function ProfilePage() {
   const { isConnected } = useAccount();
@@ -51,14 +91,14 @@ export default function ProfilePage() {
     setDraft(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleProfileImageUpload = (file?: File) => {
+  const handleProfileImageUpload = async (file?: File) => {
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateDraft("profileImageDataUrl", typeof reader.result === "string" ? reader.result : "");
-    };
-    reader.readAsDataURL(file);
+    try {
+      setSaveError("");
+      updateDraft("profileImageDataUrl", await compressProfileImage(file));
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Unable to use that profile picture.");
+    }
   };
 
   const save = async () => {
@@ -196,7 +236,7 @@ export default function ProfilePage() {
                       type="file"
                       accept="image/*"
                       className="sr-only"
-                      onChange={event => handleProfileImageUpload(event.target.files?.[0])}
+                      onChange={event => void handleProfileImageUpload(event.target.files?.[0])}
                     />
                   </label>
                 </div>
