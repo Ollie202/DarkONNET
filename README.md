@@ -208,6 +208,18 @@ Every pull request and push to `main` runs:
 
 ---
 
+## Project Links
+
+- **Live app:** [darkonnet.vercel.app](https://darkonnet.vercel.app/)
+- **Backend repository:** [tmdefi/DarkONNET-Backend](https://github.com/tmdefi/DarkONNET-Backend)
+
+## Socials
+
+- **X:** [Ollie202](https://x.com/goatxii3?s=21)
+- **X:** [TmDefi](https://x.com/tmdefi?s=21)
+
+---
+
 ## License
 
 MIT
