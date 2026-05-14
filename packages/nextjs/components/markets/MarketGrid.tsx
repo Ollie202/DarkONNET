@@ -3,15 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useAccount } from "wagmi";
 import { type CategoryFilter, CategoryTabs } from "~~/components/markets/CategoryTabs";
 import { MarketCard } from "~~/components/markets/MarketCard";
 import { useProfile } from "~~/components/profile/ProfileContext";
 import { type OnchainPoolSnapshot, useOnchainMarketVolumes } from "~~/hooks/markets/useOnchainMarketVolumes";
-import { mapSupabaseMarketToMarket } from "~~/lib/darkonnetApi";
+import { darkonnetApi } from "~~/lib/darkonnetApi";
 import { type Market, getMarketVolumeScore, isMarketEnded } from "~~/lib/mockMarkets";
-import { createClient } from "~~/utils/supabase/client";
 
 type MarketGridProps = {
   source?: "platform" | "creator";
@@ -148,20 +146,14 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
   useEffect(() => {
     let active = true;
-    const supabase = createClient();
 
     const syncMarkets = async () => {
       setIsLoading(true);
       setError("");
       try {
-        const { data, error: fetchError } = await supabase
-          .from("markets")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (fetchError) throw fetchError;
+        const nextMarkets = await darkonnetApi.listMarkets();
         if (!active) return;
-        setMarkets(data.map(mapSupabaseMarketToMarket));
+        setMarkets(nextMarkets);
       } catch {
         if (!active) return;
         setMarkets([]);
@@ -173,28 +165,8 @@ export const MarketGrid = ({ source = "platform" }: MarketGridProps) => {
 
     syncMarkets();
 
-    const channel = supabase
-      .channel("markets-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "markets" },
-        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-          if (payload.eventType === "INSERT") {
-            setMarkets(prev => [mapSupabaseMarketToMarket(payload.new), ...prev]);
-          } else if (payload.eventType === "UPDATE") {
-            setMarkets(prev =>
-              prev.map(m => (m.id === payload.new.market_id ? mapSupabaseMarketToMarket(payload.new) : m)),
-            );
-          } else if (payload.eventType === "DELETE") {
-            setMarkets(prev => prev.filter(m => m.id === payload.old.market_id));
-          }
-        },
-      )
-      .subscribe();
-
     return () => {
       active = false;
-      supabase.removeChannel(channel);
     };
   }, []);
 

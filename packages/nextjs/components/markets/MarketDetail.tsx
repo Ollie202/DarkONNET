@@ -502,11 +502,6 @@ export const MarketDetail = ({ market }: MarketDetailProps) => {
       });
       await waitForTransactionReceipt(wagmiConfig, { hash: betHash, chainId: sepolia.id });
 
-      try {
-        await darkonnetApi.addParticipant(market.id, participantWalletAddress);
-      } catch (participantError) {
-        console.warn("Bet confirmed, but participant sync failed.", participantError);
-      }
       setBetMessage("Bet placed");
       window.dispatchEvent(new Event("darkonnet:cusdt-balance-refresh"));
       void oddsSnapshot.loadLatestSnapshot();

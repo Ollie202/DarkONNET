@@ -162,11 +162,7 @@ export const useMarketPositions = () => {
     if (!walletKey) return [];
     const entries = new Map<string, Market>();
     markets.forEach(market => {
-      const participantWallets = Array.isArray(market.participantWallets)
-        ? market.participantWallets.map(wallet => wallet.toLowerCase())
-        : [];
-
-      if (market.onchainMarketId && participantWallets.includes(walletKey)) {
+      if (market.onchainMarketId) {
         entries.set(market.onchainMarketId, market);
       }
     });
@@ -187,15 +183,6 @@ export const useMarketPositions = () => {
   const targetMarketIds = useMemo(
     () => positionMarkets.map(market => market.onchainMarketId).filter((id): id is string => Boolean(id)),
     [positionMarkets],
-  );
-
-  const positionTargets = useMemo(
-    () =>
-      targetMarketIds.flatMap(onchainMarketId => [
-        { onchainMarketId, market: marketByOnchainId.get(onchainMarketId), outcome: 0 as const, side: "Yes" as const },
-        { onchainMarketId, market: marketByOnchainId.get(onchainMarketId), outcome: 1 as const, side: "No" as const },
-      ]),
-    [marketByOnchainId, targetMarketIds],
   );
 
   const marketInfoTargets = targetMarketIds;
@@ -245,6 +232,20 @@ export const useMarketPositions = () => {
 
     return entries;
   }, [marketInfoReads.data, marketInfoTargets]);
+
+  const existingMarketIds = useMemo(
+    () => marketInfoTargets.filter(onchainMarketId => Boolean(marketInfoById.get(onchainMarketId)?.[7])),
+    [marketInfoById, marketInfoTargets],
+  );
+
+  const positionTargets = useMemo(
+    () =>
+      existingMarketIds.flatMap(onchainMarketId => [
+        { onchainMarketId, market: marketByOnchainId.get(onchainMarketId), outcome: 0 as const, side: "Yes" as const },
+        { onchainMarketId, market: marketByOnchainId.get(onchainMarketId), outcome: 1 as const, side: "No" as const },
+      ]),
+    [existingMarketIds, marketByOnchainId],
+  );
 
   const loadPositionReads = useCallback(async () => {
     if (!hasContract || !isConnected || !address || !publicClient || positionTargets.length === 0) {

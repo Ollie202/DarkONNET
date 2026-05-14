@@ -1,14 +1,19 @@
 import { getAddress } from "viem";
 import { type LocalMarket } from "~~/lib/localMarkets";
 import { type Market, type MarketCategory, parseMarketVolume } from "~~/lib/mockMarkets";
-import { createClient } from "~~/utils/supabase/client";
-
-const supabase = createClient();
-const defaultApiBaseUrl =
-  process.env.NODE_ENV === "production"
-    ? "https://darkonnet-backend-production.up.railway.app"
-    : "http://localhost:8787";
+const defaultApiBaseUrl = "https://darkonnet-backend-production.up.railway.app";
 const apiBaseUrl = (process.env.NEXT_PUBLIC_DARKONNET_API_URL || defaultApiBaseUrl).replace(/\/+$/, "");
+const hasSupabaseConfig = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+);
+
+const getSupabase = async () => {
+  if (!hasSupabaseConfig) {
+    throw new Error("Supabase public env is not configured.");
+  }
+  const { createClient } = await import("~~/utils/supabase/client");
+  return createClient();
+};
 
 export type ApiMarket = {
   marketId: string;
@@ -33,7 +38,6 @@ export type ApiMarket = {
   acceptedAt?: string | null;
   resolvedAt?: string | null;
   resolution?: string | null;
-  participants?: string[];
   metadata?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
@@ -316,9 +320,7 @@ const mapApiMarket = (market: ApiMarket): Market => {
     homeName: market.homeName || undefined,
     awayName: market.awayName || undefined,
     creatorKey: market.creatorWalletAddress || undefined,
-    participantWallets: Array.isArray(market.participants)
-      ? market.participants.filter((participant): participant is string => typeof participant === "string")
-      : [],
+    participantWallets: [],
     adminNote: typeof metadata.adminNote === "string" ? metadata.adminNote : undefined,
     resolution:
       market.resolution === "yes" || market.resolution === "no" || market.resolution === "canceled"
@@ -332,37 +334,6 @@ const mapApiMarket = (market: ApiMarket): Market => {
         : undefined,
   };
 };
-
-const mapSupabaseMarketToApi = (m: any): ApiMarket => ({
-  marketId: m.market_id,
-  onchainMarketId: m.onchain_market_id,
-  slug: m.slug,
-  category: m.category,
-  title: m.title,
-  description: m.description,
-  provider: m.provider,
-  imageUrl: m.image_url,
-  homeName: m.home_name,
-  awayName: m.away_name,
-  homeLogoUrl: m.home_logo_url,
-  awayLogoUrl: m.away_logo_url,
-  leagueName: m.league_name,
-  leagueLogoUrl: m.league_logo_url,
-  sourceUrl: m.source_url,
-  sourceName: m.source_name,
-  startsAt: m.starts_at,
-  creatorWalletAddress: m.creator_wallet_address,
-  status: m.status,
-  acceptedAt: m.accepted_at,
-  resolvedAt: m.resolved_at,
-  resolution: m.resolution,
-  participants: m.participants,
-  metadata: m.metadata,
-  createdAt: m.created_at,
-  updatedAt: m.updated_at,
-});
-
-export const mapSupabaseMarketToMarket = (market: any): Market => mapApiMarket(mapSupabaseMarketToApi(market));
 
 const mapSupabaseCommentToApi = (comment: any): ApiComment => ({
   id: comment.id,
@@ -389,6 +360,7 @@ const mapSupabaseProfileToApi = (profile: any): ApiProfile => ({
 });
 
 const getProfileFromSupabase = async (walletAddress: string) => {
+  const supabase = await getSupabase();
   const normalizedWallet = normalizeWalletAddress(walletAddress);
   const { data, error } = await supabase
     .from("profiles")
@@ -414,6 +386,7 @@ const saveProfileInSupabase = async (
   walletAddress: string,
   profile: Omit<ApiProfile, "walletAddress" | "createdAt" | "updatedAt">,
 ) => {
+  const supabase = await getSupabase();
   const normalizedWallet = normalizeWalletAddress(walletAddress);
   const { data, error } = await supabase
     .from("profiles")
@@ -444,6 +417,7 @@ const createCommentInSupabase = async (input: {
   body: string;
   parentId?: string | null;
 }) => {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("comments")
     .insert({
@@ -465,6 +439,7 @@ const setCommentLikeInSupabase = async (input: {
   walletAddress: string;
   liked: boolean;
 }) => {
+  const supabase = await getSupabase();
   const { data: current } = await supabase.from("comments").select("liked_by").eq("id", input.commentId).single();
   let likedBy = current?.liked_by || [];
   const walletAddress = input.walletAddress.toLowerCase();
@@ -484,17 +459,6 @@ const setCommentLikeInSupabase = async (input: {
   return mapSupabaseCommentToApi(data);
 };
 
-const addParticipantInSupabase = async (marketId: string, walletAddress: string) => {
-  const { data: current } = await supabase.from("markets").select("participants").eq("market_id", marketId).single();
-  const normalizedWallet = walletAddress.toLowerCase();
-  const participants = current?.participants || [];
-  if (!participants.includes(normalizedWallet)) {
-    participants.push(normalizedWallet);
-    const { error } = await supabase.from("markets").update({ participants }).eq("market_id", marketId);
-    if (error) throw error;
-  }
-};
-
 export const darkonnetApi = {
   baseUrl: apiBaseUrl,
   wsNotificationsUrl(walletAddress: string) {
@@ -510,23 +474,13 @@ export const darkonnetApi = {
     return `${apiBaseUrl.replace(/^http/i, "ws")}${path}?${params.toString()}`;
   },
   async listMarkets(options: { includeEnded?: boolean } = {}) {
-    const query = supabase.from("markets").select("*");
-    if (!options.includeEnded) {
-      // Filter logic if needed, but usually we handle in UI
-    }
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return (data || []).map(mapSupabaseMarketToMarket);
+    const params = options.includeEnded ? "?includeEnded=true" : "";
+    const { markets } = await apiRequest<{ markets: ApiMarket[] }>(`/api/markets${params}`);
+    return markets.map(mapApiMarket);
   },
   async getMarket(marketId: string) {
-    const { data, error } = await supabase
-      .from("markets")
-      .select("*")
-      .or(`market_id.eq.${marketId},onchain_market_id.eq.${marketId},slug.eq.${marketId}`)
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) throw new Error("This market does not exist in the DarkONNET backend, or it may have been removed.");
-    return mapApiMarket(mapSupabaseMarketToApi(data));
+    const { market } = await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}`);
+    return mapApiMarket(market);
   },
   async upsertMarket(input: LocalMarket) {
     const backendMarketId = input.onchainMarketId || input.id;
@@ -603,6 +557,7 @@ export const darkonnetApi = {
     return mapApiMarket(market);
   },
   async listComments(marketId: string) {
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from("comments")
       .select("*")
@@ -658,17 +613,6 @@ export const darkonnetApi = {
       return comment;
     } catch {
       return setCommentLikeInSupabase(input);
-    }
-  },
-  async addParticipant(marketId: string, walletAddress: string) {
-    try {
-      await apiRequest<{ market: ApiMarket }>(`/api/markets/${encodeURIComponent(marketId)}/participants`, {
-        method: "POST",
-        body: { walletAddress },
-        walletAddress,
-      });
-    } catch {
-      await addParticipantInSupabase(marketId, walletAddress);
     }
   },
   async listNotifications(walletAddress: string) {
