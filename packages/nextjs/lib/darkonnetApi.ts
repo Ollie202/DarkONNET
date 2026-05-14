@@ -1,5 +1,4 @@
 import { getAddress } from "viem";
-
 import { type LocalMarket } from "~~/lib/localMarkets";
 import { type Market, type MarketCategory, parseMarketVolume } from "~~/lib/mockMarkets";
 
