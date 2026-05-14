@@ -1,6 +1,8 @@
 import { getAddress } from "viem";
+
 import { type LocalMarket } from "~~/lib/localMarkets";
 import { type Market, type MarketCategory, parseMarketVolume } from "~~/lib/mockMarkets";
+
 const defaultApiBaseUrl = "https://darkonnet-backend-production.up.railway.app";
 const apiBaseUrl = (process.env.NEXT_PUBLIC_DARKONNET_API_URL || defaultApiBaseUrl).replace(/\/+$/, "");
 const hasSupabaseConfig = Boolean(
